@@ -14,7 +14,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
         {
             var change = base.GetGoalChange(goal);
             if (goal.Name == AutonomousCharacter.GET_RICH_GOAL) {change -= 5.0f;}
-            // Add here effects for other goals...like BeQuick...
+            if (goal.Name == AutonomousCharacter.BE_QUICK_GOAL) {change -= 5.0f;}
             return change;
         }
 

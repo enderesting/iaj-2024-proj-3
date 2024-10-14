@@ -14,7 +14,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.StateMachine
         {
             this.agent = agent;
             this.enemy = GameManager.Instance.Character;
-            TargetState = new Sleep(agent);
+            TargetState = agent.stats.BaseState;
             Actions = new List<IAction>();
         }
 

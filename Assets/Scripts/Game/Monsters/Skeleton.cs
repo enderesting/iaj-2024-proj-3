@@ -23,7 +23,7 @@ namespace Assets.Scripts.Game.NPCs
             this.stats.SimpleDamage = 3;
             this.stats.AwakeDistance = 10;
             this.stats.WeaponRange = 2;
-
+            this.stats.BaseState = new Sleep(this);
         }
 
         public override void InitializeBehaviourTree()

@@ -121,12 +121,22 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
             int xp = (int)worldModel.GetProperty(PropertiesName.XP);
             int level = (int)worldModel.GetProperty(PropertiesName.LEVEL);
 
+            float res;
 
             if (hp > this.expectedHPChange) // you should survive
             {
-                return base.GetHValue(worldModel) * 0.5f + ((float) Math.Min(this.expectedHPChange/maxHp, 1)) * 0.3f + ((float) Math.Min(level * 10/this.expectedXPChange, 1)) * 0.2f; // normalize from 0 to 1
+                res = base.GetHValue(worldModel) * 0.5f
+                    + ((float) Math.Min(this.expectedHPChange/maxHp, 1)) * 0.3f
+                    + ((float) Math.Min(level * 10/this.expectedXPChange, 1)) * 0.2f; // normalize from 0 to 1
+
+                    // base (distance to action) * 0.5 +
+                    // hp loss * 0.3 -- the less hp you lose the better
+                    // xp gain * 0.2 -- the more xp you gain the better
+            }else{
+                res = 10f;
             }
-            return 10.0f;
+            // Debug.Log(base.ActionName + " " + res);
+            return res;
         }
      }
 }

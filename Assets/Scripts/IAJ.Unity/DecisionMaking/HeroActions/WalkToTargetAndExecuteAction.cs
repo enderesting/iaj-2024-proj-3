@@ -9,11 +9,13 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
         protected AutonomousCharacter Character { get; set; }
 
         public GameObject Target { get; set; }
+        public String ActionName { get; set; }
 
         protected WalkToTargetAndExecuteAction(string actionName, AutonomousCharacter character, GameObject target) : base(actionName + "(" + target.name + ")")
         {
             this.Character = character;
             this.Target = target;
+            this.ActionName = actionName;
         }
 
         public override float GetDuration()

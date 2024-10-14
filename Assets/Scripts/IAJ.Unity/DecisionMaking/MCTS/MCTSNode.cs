@@ -11,13 +11,18 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.MCTS
         public Action Action { get; set; }
         public int PlayerID { get; set; }
         public List<MCTSNode> ChildNodes { get; private set; }
+        // number of visits
         public int N { get; set; }
+        // expected Q reward
         public float Q { get; set; }
+        // Q/N = "discontentment value"
 
         public MCTSNode(WorldModel state)
         {
             this.State = state;
             this.ChildNodes = new List<MCTSNode>();
+            this.N = 0;
+            this.Q = 0;
         }
     }
 }

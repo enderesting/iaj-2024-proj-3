@@ -16,15 +16,20 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.GOB
 
         public Action secondBestAction;
         public Action thirdBestAction;
+        
+        public float TotalProcessingTime { get; set; }
+        public float ProcessingTime { get; set; }
+        public int TotalActionCombinationsProcessed { get; set; }
 
         // Utility based GOB
         public GOBDecisionMaking(List<Action> _actions, List<Goal> goals)
         {
             this.actions = _actions;
             this.goals = goals;
-            secondBestAction = new Action("yo");
-            thirdBestAction = new Action("yo too");
             this.ActionDiscontentment = new Dictionary<Action,float>();
+            ProcessingTime = 0;
+            TotalActionCombinationsProcessed = 0;
+            TotalProcessingTime = 0;
         }
 
         //Predicting the Discontentment after executing the action
@@ -51,17 +56,50 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.GOB
         public Action ChooseAction(AutonomousCharacter character)
         {
             // Find the action leading to the lowest discontentment
+            ProcessingTime = 0;
+            var startTime = Time.realtimeSinceStartup;
             InProgress = true;
             Action bestAction = null;
-            var bestValue = float.PositiveInfinity;
             secondBestAction = null;
             thirdBestAction = null;
+            float bestValue = float.PositiveInfinity;
+            float secondBest = float.PositiveInfinity;
+            float thirdBest = float.PositiveInfinity;
             ActionDiscontentment.Clear();
-
-            //ToDo implement
-
             
+            foreach(Action action in actions)
+            {
+                if (action.CanExecute())
+                {
+                    float discontentment = CalculateDiscontentment(action, goals, character);
+                    ActionDiscontentment.Add(action, discontentment);
+                    if (discontentment < bestValue)
+                    {
+                        thirdBestAction = secondBestAction;
+                        secondBestAction = bestAction;
+                        bestAction = action;
+
+                        thirdBest = secondBest;
+                        secondBest = bestValue;
+                        bestValue = discontentment;
+                    }
+                    else if (discontentment < secondBest){
+                        thirdBestAction = secondBestAction;
+                        secondBestAction = action;
+
+                        thirdBest = secondBest;
+                        secondBest = discontentment;
+                    }
+                    else if (discontentment < thirdBest){
+                        thirdBestAction = action;
+                        thirdBest = discontentment;
+                    }
+                    TotalActionCombinationsProcessed++;
+                }
+            }
             InProgress = false;
+            TotalProcessingTime += Time.realtimeSinceStartup - startTime;
+            ProcessingTime += Time.realtimeSinceStartup - startTime;
             return bestAction;
         }
     }

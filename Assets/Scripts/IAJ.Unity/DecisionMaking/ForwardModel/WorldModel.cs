@@ -101,5 +101,49 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.ForwardModel
                 return this.NextEnemyActions;
         }
 
+        public virtual bool IsAlive(){
+            return (int)this.GetProperty(PropertiesName.HP) > 0;
+        }
+        
+        public float timeAndMoneyScore(float time, int money)
+        {
+            float relationTimeMoney = time - 6 * money;
+
+            if (relationTimeMoney > 30)
+                return 0;
+            else if (relationTimeMoney < 0)
+                return 0.6f;
+            else
+                return 0.3f;
+        }
+
+        public float timeScore(float time)
+        {
+            return (1 - time / GameManager.GameConstants.TIME_LIMIT);
+        }
+
+        public float levelScore()
+        {
+            int level = (int)this.GetProperty(PropertiesName.LEVEL);
+            if (level == 2)
+                return 1f;
+            else if (level == 1)
+                return 0.4f;
+            else
+                return 0;
+        }
+
+        public float hpScore(int hp)
+        {
+            if (hp > 18) //survives orc and dragon
+                return 1f;
+            if (hp > 12) //survives dragon or two orcs
+                return 0.6f;
+            else if (hp > 6) //survives orc
+                return 0.1f;
+            else
+                return 0.01f;
+
+        }
     }
 }

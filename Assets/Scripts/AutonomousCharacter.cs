@@ -64,6 +64,15 @@ public class AutonomousCharacter : NPC
         LoadAndPlay
     }
 
+    [Serializable]
+    public enum WorldModelSettings
+    {
+        DictionaryWorldModel,
+        // FEARWorldModel,
+    }
+
+    [SerializeField] public WorldModelSettings worldModelSettings;
+
     [Header("Character Behaviour Algorithm")]
     [Tooltip("Here you choose what algorithm control Sir Uthgard")]
     [SerializeField]
@@ -88,17 +97,17 @@ public class AutonomousCharacter : NPC
     public RLOptions RLLOptions;
 
     [Header("Decision Algorithm Options")]
-    public bool ReactToEnemy;
+    public bool ReactToEnemy = true;
  
     //[Header("Hero Actions")]
     public bool LevelUp = true;
     public bool GetHealthPotion = true;
     public bool SwordAttack = true;
-    public bool GetManaPotion = false;
-    public bool ShieldOfFaith = false;
-    public bool DivineSmite = false;
-    public bool Teleport = false;
-    public bool LayOnHands = false;
+    public bool GetManaPotion = true;
+    public bool ShieldOfFaith = true;
+    public bool DivineSmite = true;
+    public bool Teleport = true;
+    public bool LayOnHands = true;
     public bool Rest = false;
 
 
@@ -153,18 +162,18 @@ public class AutonomousCharacter : NPC
     // Draw path settings
     private LineRenderer lineRenderer;
 
-    protected override void Awake()
-    {
-        base.Awake();
-        //Assign character control flags
-        ControlledByPlayer = (characterControl == CharacterControlType.ControlledByPlayer);
-        GOBActive = (characterControl == CharacterControlType.GOB);
-        GOAPActive = (characterControl == CharacterControlType.GOAP);
-        MCTSActive = (characterControl == CharacterControlType.MCTS);
-        MCTSBiasedPlayoutActive = (characterControl == CharacterControlType.MCTS_BiasedPlayout);
-        TabularQLearningActive = (characterControl == CharacterControlType.TabularQLearning);
-        NNLearningActive = (characterControl == CharacterControlType.NeuralNetwork);
-    }
+    // protected override void Awake()
+    // {
+    //     base.Awake();
+    //     //Assign character control flags
+    //     ControlledByPlayer = (characterControl == CharacterControlType.ControlledByPlayer);
+    //     GOBActive = (characterControl == CharacterControlType.GOB);
+    //     GOAPActive = (characterControl == CharacterControlType.GOAP);
+    //     MCTSActive = (characterControl == CharacterControlType.MCTS);
+    //     MCTSBiasedPlayoutActive = (characterControl == CharacterControlType.MCTS_BiasedPlayout);
+    //     TabularQLearningActive = (characterControl == CharacterControlType.TabularQLearning);
+    //     NNLearningActive = (characterControl == CharacterControlType.NeuralNetwork);
+    // }
 
     public void Start()
     {
@@ -187,6 +196,14 @@ public class AutonomousCharacter : NPC
         DiaryText = GameObject.Find("DiaryText").GetComponent<Text>();
 
         NearEnemy = null;
+
+        //Assign character control flags
+        ControlledByPlayer = (characterControl == CharacterControlType.ControlledByPlayer);
+        GOBActive = (characterControl == CharacterControlType.GOB);
+        GOAPActive = (characterControl == CharacterControlType.GOAP);
+        MCTSActive = (characterControl == CharacterControlType.MCTS);
+        MCTSBiasedPlayoutActive = (characterControl == CharacterControlType.MCTS_BiasedPlayout);
+
 
         //initialization of the GOB decision making
         //let's start by creating 4 main goals
@@ -231,7 +248,7 @@ public class AutonomousCharacter : NPC
         {
             if (SwordAttack) { this.Actions.Add(new SwordAttack(this, enemy)); };
 
-            //if (DivineSmite) this.Actions.Add(new DivineSmite(this, enemy));
+            if (DivineSmite) this.Actions.Add(new DivineSmite(this, enemy));
         }
 
         foreach (var enemy in GameObject.FindGameObjectsWithTag("Orc"))
@@ -257,13 +274,14 @@ public class AutonomousCharacter : NPC
 
         foreach (var potion in GameObject.FindGameObjectsWithTag("ManaPotion"))
         {
-            //if (GetManaPotion) this.Actions.Add(new GetManaPotion(this, potion));
+            if (GetManaPotion) this.Actions.Add(new GetManaPotion(this, potion));
         }
 
         //Then we have a series of extra actions available to Sir Uthgard
-        //if (ShieldOfFaith) this.Actions.Add(new ShieldOfFaith(this));
+        if (ShieldOfFaith) this.Actions.Add(new ShieldOfFaith(this));
         if (LevelUp) this.Actions.Add(new LevelUp(this));
-        //if (Teleport) this.Actions.Add(new Teleport(this));
+        if (Teleport) this.Actions.Add(new Teleport(this));
+        if (LayOnHands) this.Actions.Add(new LayOnHands(this));
         //if (Rest) this.Actions.Add(new Rest(this));
 
 
@@ -274,21 +292,38 @@ public class AutonomousCharacter : NPC
             else if (this.GOAPActive)
             {
                 // the WorldModel is necessary for the GOAP and MCTS algorithms that need to predict action effects on the world...
-                var worldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
+                WorldModel worldModel;
+
+                // if (worldModelSettings == WorldModelSettings.FEARWorldModel)
+                // {
+                //     worldModel = new FEARWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
+                // }
+                // else
+                // {
+                    worldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
+                // }
+                    
                 this.GOAPDecisionMaking = new DepthLimitedGOAPDecisionMaking(worldModel, this);
             }
             else if (this.MCTSActive)
             {
-                var WorldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
-                this.MCTSDecisionMaking = new MCTS(WorldModel, MCTS_MaxIterations, MCTS_MaxIterationsPerFrame, MCTS_NumberPlayouts, MCTS_MaxPlayoutDepth);
+                WorldModel worldModel;
+                
+                // if (worldModelSettings == WorldModelSettings.FEARWorldModel)
+                // {
+                //     worldModel = new FEARWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
+                // }
+                // else
+                // {
+                    worldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
+                // }
+                
+                this.MCTSDecisionMaking = new MCTS(worldModel, MCTS_MaxIterations, MCTS_MaxIterationsPerFrame, MCTS_NumberPlayouts, MCTS_MaxPlayoutDepth);
             }
             else if (this.MCTSBiasedPlayoutActive)
             {
-                throw new Exception("Needs to be Created");
-            }
-            else if (this.TabularQLearningActive)
-            {
-                throw new Exception("Needs to be Created");
+                var WorldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
+                this.MCTSDecisionMaking = new MCTSBiased(WorldModel, MCTS_MaxIterations, MCTS_MaxIterationsPerFrame, MCTS_NumberPlayouts, MCTS_MaxPlayoutDepth, 1.0f);
             }
         }
 
@@ -361,8 +396,11 @@ public class AutonomousCharacter : NPC
             }
             else if (MCTSActive)
             {
-                throw new Exception("MCTS Needs to be initialized...");
-                //this.MCTSDecisionMaking.InitializeMCTSearch();
+                this.MCTSDecisionMaking.InitializeMCTSearch();
+            }
+            else if (MCTSBiasedPlayoutActive)
+            {
+                this.MCTSDecisionMaking.InitializeMCTSearch();
             }
             else if (TabularQLearningActive)
             {
@@ -405,7 +443,16 @@ public class AutonomousCharacter : NPC
         {
             this.UpdateGOB();
         }
+        else if (this.MCTSActive)
+        {
+            this.UpdateMCTS();
+        }
+        else if (this.MCTSBiasedPlayoutActive)
+        {
+            this.UpdateMCTS();
+        }
         //ToDo Update your RL algorithms here...
+
  
 
         if (this.CurrentAction != null)
@@ -565,6 +612,11 @@ public class AutonomousCharacter : NPC
                     this.BestActionText.text = "Best Action:\n " + action.Name + ":" + bestDiscont.ToString("F2") + "\n";
                     this.BestActionSequence.text = " Second Best:\n" + (secondBestAction != null ? secondBestAction.Name : "null") + ":" + secondBestDiscont.ToString("F2") + "\n"
                         + " Third Best:\n" + (thirdBestAction != null ? thirdBestAction.Name : "null") + ":" + thirdBestDiscont.ToString("F2") + "\n";
+                    
+                    this.TotalProcessingTimeText.text = "Process. Time (ms): " + (this.GOBDecisionMaking.TotalProcessingTime * 1000).ToString("F") + " (" +
+                                                        (this.GOBDecisionMaking.ProcessingTime * 1000).ToString("F") + ")";
+                    this.BestDiscontentmentText.text = "Best Discontentment: " + this.GOBDecisionMaking.ActionDiscontentment[action].ToString("F");
+                    this.ProcessedActionsText.text = "Act. comb. processed: " + this.GOBDecisionMaking.TotalActionCombinationsProcessed;
                 }
             }
         }
@@ -584,7 +636,8 @@ public class AutonomousCharacter : NPC
             }
         }
 
-        this.TotalProcessingTimeText.text = "Process. Time: " + this.GOAPDecisionMaking.TotalProcessingTime.ToString("F");
+        this.TotalProcessingTimeText.text = "Process. Time (ms): " + (this.GOAPDecisionMaking.TotalProcessingTime * 1000).ToString("F") + " (" +
+                                            (this.GOAPDecisionMaking.ProcessingTime * 1000).ToString("F") + ")";
         this.BestDiscontentmentText.text = "Best Discontentment: " + this.GOAPDecisionMaking.BestDiscontentmentValue.ToString("F");
         this.ProcessedActionsText.text = "Act. comb. processed: " + this.GOAPDecisionMaking.TotalActionCombinationsProcessed;
 
@@ -610,11 +663,11 @@ public class AutonomousCharacter : NPC
     }
 
     // You'll need this, when using MCTS
-    /*private void UpdateMCTS(MCTS mCTS)
+    private void UpdateMCTS()
     {
-        if (mCTS.InProgress)
+        if (MCTSDecisionMaking.InProgress)
         {
-            var action = mCTS.ChooseAction();
+            var action = MCTSDecisionMaking.ChooseAction();
             if (action != null)
             {
                 this.CurrentAction = action;
@@ -622,39 +675,40 @@ public class AutonomousCharacter : NPC
             }
         }
         //Statistical and Debug Data
-        this.TotalProcessingTimeText.text = "Process. Time: " + mCTS.TotalProcessingTime.ToString("F");
+        this.TotalProcessingTimeText.text = "Process. Time (ms): " + (MCTSDecisionMaking.TotalProcessingTime * 1000).ToString("F") + " (" +
+                                            (this.MCTSDecisionMaking.ProcessingTime * 1000).ToString("F") + ")";
 
         this.ProcessedActionsText.text = "Iterations: "
-            + mCTS.CurrentIterations.ToString()
+            + MCTSDecisionMaking.CurrentIterations.ToString()
             + "\n Max Sel Depth: "
-            + mCTS.MaxSelectionDepthReached.ToString()
+            + MCTSDecisionMaking.MaxSelectionDepthReached.ToString()
             + "\n Max Playout Depth: "
-            + mCTS.MaxPlayoutDepthReached.ToString();
+            + MCTSDecisionMaking.MaxPlayoutDepthReached.ToString();
 
-        if (mCTS.BestFirstChild != null)
+        if (MCTSDecisionMaking.BestFirstChild != null)
         {
-            var q = mCTS.BestFirstChild.Q / mCTS.BestFirstChild.N;
+            var q = MCTSDecisionMaking.BestFirstChild.Q / MCTSDecisionMaking.BestFirstChild.N;
             this.BestDiscontentmentText.text = "Best Exp. Q value: " + q.ToString("F05");
             var actionText = "";
  
-            foreach (var node in mCTS.BestSequence)
+            foreach (var node in MCTSDecisionMaking.BestSequence)
             {
                 actionText += "\n" + node.Action.Name + " (" + node.Q + "/" + node.N + ")";
             }
             this.BestActionSequence.text = "Best Action Sequence: " + actionText;
 
             //What is the predicted state of the world?
-            var endState = mCTS.BestActionSequenceEndState; // previously BestActionSequenceWorldState
+            var endState = MCTSDecisionMaking.BestActionSequenceEndState; // previously BestActionSequenceWorldState
             var text = "";
             if (endState != null)
             {
                 text += "Predicted World State:\n";
-                text += "My Level:" + endState.GetProperty(Properties.LEVEL) + "\n";
-                text += "My HP:" + endState.GetProperty(Properties.HP) + "\n";
-                text += "My Money:" + endState.GetProperty(Properties.MONEY) + "\n";
-                text += "Time Passsed:" + endState.GetProperty(Properties.TIME) + "\n";
+                text += "My Level:" + endState.GetProperty(PropertiesName.LEVEL) + "\n";
+                text += "My HP:" + endState.GetProperty(PropertiesName.HP) + "\n";
+                text += "My Money:" + endState.GetProperty(PropertiesName.MONEY) + "\n";
+                text += "Time Passsed:" + endState.GetProperty(PropertiesName.TIME) + "\n";
                 this.BestActionText.text = text;
-                if ((int)endState.GetProperty(Properties.HP) < 0 || (float)endState.GetProperty(Properties.TIME) > 150)
+                if ((int)endState.GetProperty(PropertiesName.HP) < 0 || (float)endState.GetProperty(PropertiesName.TIME) > 150)
                 {
                     //stop here
                 }
@@ -668,7 +722,7 @@ public class AutonomousCharacter : NPC
         }
 
 
-    }*/
+    }
 
 
     public override void Restart()

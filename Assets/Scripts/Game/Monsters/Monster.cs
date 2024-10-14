@@ -27,6 +27,7 @@ namespace Assets.Scripts.Game.NPCs
             public float AwakeDistance;
             public float maxPursuitRange;
             public float WeaponRange;
+            public IState BaseState;
         }
 
         public EnemyStats stats;

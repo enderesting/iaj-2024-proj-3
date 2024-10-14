@@ -18,6 +18,7 @@ public class AutonomousCharacterEditor : Editor
         // Display Hero Actions fields without condition
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Optional Hero Actions", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("ReactToEnemy"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("LevelUp"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("GetHealthPotion"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("SwordAttack"));
@@ -31,12 +32,14 @@ public class AutonomousCharacterEditor : Editor
 
         // Display CharacterControlType enum field
         EditorGUILayout.PropertyField(characterControlProp, new GUIContent("Character Control"));
+        
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("worldModelSettings"), new GUIContent("World Model"));
 
         // Check the value of CharacterControlType and display fields conditionally
         if (character.characterControl == AutonomousCharacter.CharacterControlType.GOB ||
             character.characterControl == AutonomousCharacter.CharacterControlType.GOAP)
         {
-            EditorGUILayout.Space();
+            EditorGUILayout.Space(); 
             EditorGUILayout.PropertyField(serializedObject.FindProperty("SurviveGoalWeight"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("GainLevelGoalWeight"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("BeQuickGoalWeight"));

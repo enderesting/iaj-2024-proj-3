@@ -57,7 +57,9 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
             var currentHP = (int)worldModel.GetProperty(PropertiesName.HP);
             var maxHP = (int)worldModel.GetProperty(PropertiesName.MAXHP);
 
-            return currentHP / maxHP * 0.5f + base.GetHValue(worldModel) * 0.5f;
+            float res = currentHP / maxHP * 0.7f + base.GetHValue(worldModel) * 0.3f;
+            // Debug.Log(base.ActionName + " " + res);
+            return res;
         }
     }
 }

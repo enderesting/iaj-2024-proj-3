@@ -13,7 +13,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.StateMachine
     public class StateMachine
     {
         
-        public IState CurrentState { get; private set; }
+        public IState CurrentState { get; set; }
         
         public StateMachine(IState initialState)
         {

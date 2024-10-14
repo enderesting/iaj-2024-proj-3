@@ -68,8 +68,9 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
             // if you are close to leveling up, choose this
             int xp = (int)worldModel.GetProperty(PropertiesName.XP);
             int level = (int)worldModel.GetProperty(PropertiesName.LEVEL);
-            return xp > level * 10 - 5 ? -10 : 10;
-            
+            float res = xp > level * 10 - 5 ? -10 : 10;
+            // Debug.Log("LevelUp " + res);
+            return res;
         }
      }
 }

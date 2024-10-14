@@ -9,6 +9,7 @@ using Assets.Scripts.IAJ.Unity.DecisionMaking.BehaviorTree.BehaviourTrees;
 using System.Collections.Generic;
 using static GameManager;
 using Assets.Scripts.IAJ.Unity.DecisionMaking.StateMachine;
+// using System.Numerics;
 
 namespace Assets.Scripts.Game.NPCs
 {
@@ -17,6 +18,7 @@ namespace Assets.Scripts.Game.NPCs
     {
 
         public GameObject AlertSprite;
+        public List<Vector3> PatrolRoute;
 
         public Orc()
         {
@@ -28,15 +30,26 @@ namespace Assets.Scripts.Game.NPCs
             this.stats.SimpleDamage = 6;
             this.stats.AwakeDistance = 15;
             this.stats.WeaponRange = 3;
+            this.stats.BaseState = new Sleep(this); // TODO - maybe this will null out?
         }
 
         public override void InitializeStateMachine()
         {
-            
-            //GetPatrolPositions(out Vector3 pos1,out Vector3 pos2);
+            GetPatrolPositions(out Vector3 pos1,out Vector3 pos2);
+            PatrolRoute.Add(pos1);
+            PatrolRoute.Add(pos2);
 
-            //ToDo Create a State Machine that combines Patrol with other behaviors
-            this.StateMachine = new StateMachine(new Sleep(this));
+            if (usingFormation && !formationLeader)
+            {
+                this.stats.BaseState = new Formation(this);
+            }
+            else
+            {
+                this.stats.BaseState = new Patrol(this,PatrolRoute);
+            }
+
+            this.StateMachine = new StateMachine(this.stats.BaseState);
+    
         }
 
         public override void InitializeBehaviourTree()
@@ -50,20 +63,30 @@ namespace Assets.Scripts.Game.NPCs
         {
             var patrols = GameObject.FindGameObjectsWithTag("Patrol");
 
-            float pos = float.MaxValue;
-            GameObject closest = null;
-            foreach (var p in patrols)
-            {
-                if (Vector3.Distance(this.agent.transform.position, p.transform.position) < pos)
+                float pos = float.MaxValue;
+                float pos2 = float.MaxValue;
+                GameObject closest1 = null;
+                GameObject closest2 = null;
+                float temp;
+                foreach (GameObject p in patrols)
                 {
-                    pos = Vector3.Distance(this.agent.transform.position, p.transform.position);
-                    closest = p;
+                    temp = Vector3.Distance(this.agent.transform.position, p.transform.position);
+                    
+                    if (temp < pos)
+                    {
+                        pos2 = pos;
+                        pos = temp;
+                        closest2 = closest1;
+                        closest1 = p;
+                    }
+                    else if(temp < pos2){
+                        pos2 = temp;
+                        closest2 = p;
+                    }
                 }
 
-            }
-
-            position1 = closest.transform.GetChild(0).position;
-            position2 = closest.transform.GetChild(1).position;
+            position1 = closest1.transform.position;
+            position2 = closest2.transform.position;
         }
 
     }

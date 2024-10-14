@@ -8,9 +8,10 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.GOB
 {
     public class DepthLimitedGOAPDecisionMaking
     {
-        public const int MAX_DEPTH = 3;
+        public const int MAX_DEPTH = 2;
         public int ActionCombinationsProcessedPerFrame { get; set; }
         public float TotalProcessingTime { get; set; }
+        public float ProcessingTime { get; set; }
         public int TotalActionCombinationsProcessed { get; set; }
         public bool InProgress { get; set; }
 
@@ -28,15 +29,16 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.GOB
             this.ActionCombinationsProcessedPerFrame = 2000;
             this.Goals = character.Goals;
             this.InitialWorldModel = currentStateWorldModel;
+            this.TotalProcessingTime = 0.0f;
+            this.TotalActionCombinationsProcessed = 0;
         }
 
         public void InitializeDecisionMakingProcess()
         {
+            this.ProcessingTime = 0.0f;
             this.InProgress = true;
-            this.TotalProcessingTime = 0.0f;
-            this.TotalActionCombinationsProcessed = 0;
             this.CurrentDepth = 0;
-            this.Models = new DictionaryWorldModel[MAX_DEPTH + 1];
+            this.Models = new WorldModel[MAX_DEPTH + 1];
             this.Models[0] = this.InitialWorldModel;
             this.LevelAction = new Action[MAX_DEPTH];
             this.BestActionSequence = new Action[MAX_DEPTH];
@@ -47,15 +49,62 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.GOB
 
         public Action ChooseAction()
         {
-            var processedActions = 0;
             var startTime = Time.realtimeSinceStartup;
+            int actionCombinationsProcessedThisFrame = 0;
+
+            float currentDiscontentment;
+            Action nextAction;
 
             while (this.CurrentDepth >= 0)
             {
-                //ToDo Implement
+                if (CurrentDepth >= MAX_DEPTH)
+                {
+                    if (actionCombinationsProcessedThisFrame >= this.ActionCombinationsProcessedPerFrame)
+                    {
+                        this.TotalProcessingTime += Time.realtimeSinceStartup - startTime;
+                        this.ProcessingTime += Time.realtimeSinceStartup - startTime;
+                        return null;
+                    }
+                    currentDiscontentment = this.Models[CurrentDepth].Character.CalculateDiscontentment(this.Models[CurrentDepth]);
+                    if (currentDiscontentment < BestDiscontentmentValue)
+                    {
+                        BestDiscontentmentValue = currentDiscontentment;
+                        BestAction = this.LevelAction[0];
+                        for (int i = 0; i < MAX_DEPTH; i++)
+                        {
+                            this.BestActionSequence[i] = this.LevelAction[i];
+                        }
+                    }
+                    actionCombinationsProcessedThisFrame++;
+                    TotalActionCombinationsProcessed++;
+                    CurrentDepth--;
+                    continue;
+                }
+                nextAction = this.Models[CurrentDepth].GetNextAction();
+                if (nextAction != null)
+                {
+                    WorldModel nextWM = this.Models[CurrentDepth].GenerateChildWorldModel();
+                    nextAction.ApplyActionEffects(nextWM);
+                    if (nextWM.IsAlive()){
+                        //Debug.Log("action found. can be executed...");
+                        nextWM.Character.UpdateGoalsInsistence(nextWM);
+                        this.Models[CurrentDepth + 1] = nextWM;
+                        this.LevelAction[CurrentDepth] = nextAction;
+                        CurrentDepth++;
+                    }
+                    else{
+                        continue;
+                    }
+                }
+                else
+                {
+                    CurrentDepth--;
+                    //Debug.Log("decrease depth");
+                }
             }
 
             this.TotalProcessingTime += Time.realtimeSinceStartup - startTime;
+            this.ProcessingTime += Time.realtimeSinceStartup - startTime;
             this.InProgress = false;
             return this.BestAction;
         }
