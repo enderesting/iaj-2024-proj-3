@@ -12,8 +12,8 @@ using Assets.Scripts.IAJ.Unity.Utils;
 using System;
 using static GameManager;
 using Action = Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions.Action;
-using Assets.Scripts.IAJ.Unity.DecisionMaking;
-using RL;
+using Assets.Scripts.IAJ.Unity.DecisionMaking.RL;
+using System.IO;
 
 public class AutonomousCharacter : NPC
 {
@@ -97,7 +97,7 @@ public class AutonomousCharacter : NPC
     public RLOptions RLLOptions;
 
     [Header("Decision Algorithm Options")]
-    public bool ReactToEnemy = true;
+    public bool ReactToEnemy = false;
  
     //[Header("Hero Actions")]
     public bool LevelUp = true;
@@ -137,9 +137,12 @@ public class AutonomousCharacter : NPC
     public GameObject NearEnemy { get; private set; }
 
     //For Reinforcement Learning
-    public float Reward;
+    public float Reward = 0f;
     public int MaxEpisodes = 100;
-    public float LearningRate = 0.05f;
+    public float LearningRate = 0.5f;
+    public float DiscountRate = 0.5f;
+    public float ExploreRate = 0.2f;
+
     public int episodeCounter = 1;
 
     public float StopTime { get; set; }
@@ -203,6 +206,7 @@ public class AutonomousCharacter : NPC
         GOAPActive = (characterControl == CharacterControlType.GOAP);
         MCTSActive = (characterControl == CharacterControlType.MCTS);
         MCTSBiasedPlayoutActive = (characterControl == CharacterControlType.MCTS_BiasedPlayout);
+        TabularQLearningActive = characterControl == CharacterControlType.TabularQLearning;
 
 
         //initialization of the GOB decision making
@@ -325,6 +329,10 @@ public class AutonomousCharacter : NPC
                 var WorldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
                 this.MCTSDecisionMaking = new MCTSBiased(WorldModel, MCTS_MaxIterations, MCTS_MaxIterationsPerFrame, MCTS_NumberPlayouts, MCTS_MaxPlayoutDepth, 1.0f);
             }
+            else if (this.TabularQLearningActive)
+            {
+                this.QLearning = new QLearning(LearningRate, DiscountRate, ExploreRate, this);
+            }
         }
 
         DiaryText.text += "My Diary \n I awoke. What a wonderful day to kill Monsters! \n";
@@ -336,15 +344,26 @@ public class AutonomousCharacter : NPC
         {
             if (episodeCounter < MaxEpisodes)
             {
+                QLearning.UpdateQValue(Reward);
+                AddToDiary(" Reward: " + Reward);
+                Reward = 0;
+
                 episodeCounter++;
                 GameManager.Instance.RestartGame();
+                AddToDiary(" Episode: " + episodeCounter);
                 Debug.Log("Episode: " +  episodeCounter);
 
                 //Do here end-of-episode stuff
 
+
+                this.QLearning.InitializeQLearning();
+
                 return;
             }
-
+            string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
+            Debug.Log("Saving QTable to: " + savePath);
+            QLearning.tableQL.SaveQTable(savePath);
+            Time.timeScale = 0; // Freeze the game
             //Do here end-of-training stuff
             return;
         }
@@ -356,7 +375,7 @@ public class AutonomousCharacter : NPC
             if (enemy != null)
             {
                 if (ReactToEnemy) GameManager.Instance.WorldChanged = true;
-                AddToDiary(" There is " + enemy.name + " in front of me!");
+                // AddToDiary(" There is " + enemy.name + " in front of me!");
                 this.NearEnemy = enemy;
             }
             else
@@ -404,7 +423,7 @@ public class AutonomousCharacter : NPC
             }
             else if (TabularQLearningActive)
             {
-                throw new Exception("Tabular Q-Learning Needs to be initialized...");
+                this.QLearning.InitializeQLearning();
             }
         }
 
@@ -451,6 +470,11 @@ public class AutonomousCharacter : NPC
         {
             this.UpdateMCTS();
         }
+        else if (this.TabularQLearningActive &&
+        this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
+        {
+            this.UpdateQLearning();
+        }
         //ToDo Update your RL algorithms here...
 
  
@@ -463,12 +487,18 @@ public class AutonomousCharacter : NPC
             }
         }
 
+        if (this.TabularQLearningActive && GameManager.Instance.WorldChanged &&
+        this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
+        {
+            QLearning.UpdateQValue(Reward);
+            AddToDiary(" Reward: " + Reward);
+            Reward = 0;
+        }
+
         if (navMeshAgent.hasPath)
         {
             DrawPath();
         }
-
-
     }
 
     private void UpdateGoalsInsistence()
@@ -722,6 +752,21 @@ public class AutonomousCharacter : NPC
         }
 
 
+    }
+
+    private void UpdateQLearning()
+    {
+        if (this.QLearning.InProgress)
+        {
+            var action = this.QLearning.ChooseAction();
+            if (action != null)
+            {
+                this.CurrentAction = action;
+                AddToDiary(" I decided to " + action.Name);
+            }
+        }
+        //Statistical and Debug Data
+        this.ProcessedActionsText.text = "Episode #: " + episodeCounter + "\n";
     }
 
 

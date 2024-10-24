@@ -65,6 +65,8 @@ public class AutonomousCharacterEditor : Editor
             EditorGUILayout.PropertyField(serializedObject.FindProperty("RLLOptions"), new GUIContent("Train or Test?"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("MaxEpisodes"), new GUIContent("Training Episodes"));
             EditorGUILayout.PropertyField(serializedObject.FindProperty("LearningRate"), new GUIContent("Learning Rate"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("DiscountRate"), new GUIContent("Discount Rate"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("ExploreRate"), new GUIContent("Exploration Rate"));
         }
 
         // Apply changes to the serialized object
