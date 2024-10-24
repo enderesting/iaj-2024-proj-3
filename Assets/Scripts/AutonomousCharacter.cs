@@ -161,6 +161,7 @@ public class AutonomousCharacter : NPC
     private int previousLevel = 1;
     public TextMesh playerText;
     private GameObject closestObject;
+    private string savePath;
 
     // Draw path settings
     private LineRenderer lineRenderer;
@@ -183,6 +184,9 @@ public class AutonomousCharacter : NPC
         //This is the actual speed of the agent
         lineRenderer = this.GetComponent<LineRenderer>();
         playerText.text = "";
+        
+        // define savePath
+        savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
 
 
         // Initializing UI Text
@@ -354,15 +358,14 @@ public class AutonomousCharacter : NPC
                 Debug.Log("Episode: " +  episodeCounter);
 
                 //Do here end-of-episode stuff
-
+                // string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
+                Debug.Log("Save Brain to: " + savePath);
+                QLearning.tableQL.SaveQTable(savePath);
 
                 this.QLearning.InitializeQLearning();
 
                 return;
             }
-            string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
-            Debug.Log("Saving QTable to: " + savePath);
-            QLearning.tableQL.SaveQTable(savePath);
             Time.timeScale = 0; // Freeze the game
             //Do here end-of-training stuff
             return;
