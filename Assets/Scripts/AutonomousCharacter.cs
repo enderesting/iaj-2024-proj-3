@@ -356,9 +356,16 @@ public class AutonomousCharacter : NPC
         {
             if (episodeCounter < MaxEpisodes)
             {
-                QLearning.UpdateQValue(Reward);
-                AddToDiary(" Reward: " + Reward);
-                Reward = 0;
+                if (this.RLLOptions != RLOptions.LoadAndPlay)
+                {
+                    QLearning.UpdateQValue(Reward);
+                    AddToDiary(" Reward: " + Reward);
+                    Reward = 0;
+                    
+                    Debug.Log("Save Brain to: " + savePath);
+                    QLearning.tableQL.SaveQTable(savePath);
+
+                }
 
                 episodeCounter++;
                 GameManager.Instance.RestartGame();
@@ -367,8 +374,6 @@ public class AutonomousCharacter : NPC
 
                 //Do here end-of-episode stuff
                 // string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
-                Debug.Log("Save Brain to: " + savePath);
-                QLearning.tableQL.SaveQTable(savePath);
 
                 this.QLearning.InitializeQLearning();
 
@@ -498,7 +503,7 @@ public class AutonomousCharacter : NPC
             }
         }
 
-        if (this.TabularQLearningActive && GameManager.Instance.WorldChanged &&
+        if (this.TabularQLearningActive && GameManager.Instance.WorldChanged && this.RLLOptions != RLOptions.LoadAndPlay &&
         this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
         {
             QLearning.UpdateQValue(Reward);
