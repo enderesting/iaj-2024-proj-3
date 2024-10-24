@@ -88,7 +88,30 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
             // We don't care about levels higher than 2
             int level = character.baseStats.Level >= 2 ? 2 : 1;
 
-            return new TQLState(totalHealth, mana, progress, level);
+            // Get Position
+            Vector3 position = character.transform.position;
+            if (position.x < 45)
+            {
+                if (position.z < 45)
+                {
+                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.BottomLeft);
+                }
+                else
+                {
+                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.TopLeft);
+                }
+            }
+            else
+            {
+                if (position.z < 45)
+                {
+                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.BottomRight);
+                }
+                else
+                {
+                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.TopRight);
+                }
+            }
         }
 
         public void UpdateQValue(float reward)

@@ -43,10 +43,13 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
                 {
                     foreach (TQLState.Progress progress in System.Enum.GetValues(typeof(TQLState.Progress)))
                     {
-                        for (int level = 1; level <= 2; level++) // Assuming levels go from 1 to 2
+                        foreach (TQLState.Position position in System.Enum.GetValues(typeof(TQLState.Position)))
                         {
-                            var state = new TQLState(health, mana, progress, level);
-                            states.Add(state);
+                            for (int level = 1; level <= 2; level++) // Assuming levels go from 1 to 2
+                            {
+                                var state = new TQLState(health, mana, progress, level, position);
+                                states.Add(state);
+                            }
                         }
                     }
                 }                
