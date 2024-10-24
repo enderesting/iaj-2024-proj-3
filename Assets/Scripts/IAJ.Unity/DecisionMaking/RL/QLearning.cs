@@ -16,14 +16,14 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
         public bool InProgress;
         public Action chosenAction;
 
-        public QLearning(float learningRate, float discountRate, float exploreRate, AutonomousCharacter character)
+        public QLearning(float learningRate, float discountRate, float exploreRate, AutonomousCharacter character, string loadpath = null)
         {
             Debug.Log("Initializing QLearning");
             this.learningRate = learningRate;
             this.discountRate = discountRate;
             this.exploreRate = exploreRate;
             this.character = character;
-            this.tableQL = new TableQL(character.Actions);
+            this.tableQL = new TableQL(character.Actions, loadpath);
             InProgress = false;
         }
 

@@ -11,7 +11,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
         private List<TQLState> states;
         private List<Action> actions;
 
-        public TableQL(List<Action> actions)
+        public TableQL(List<Action> actions, string loadPath = null)
         {
             Debug.Log("Initializing TableQL");
             // Generate all state combinations
@@ -19,6 +19,12 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
             this.states = GenerateAllStates();
 
             tableQLEntries = new (TQLState, Action, float)[states.Count, actions.Count];
+
+            if (loadPath != null)
+            {
+                LoadQTable(loadPath);
+                return;
+            }
 
             // Initialize the Q-Table with each state-action pair
             for (int i = 0; i < states.Count; i++)
@@ -163,6 +169,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
         {
             if (File.Exists(filePath))
             {
+                Debug.Log("Loading Q-table from file: " + filePath);
                 // Read the JSON data from the file
                 string json = File.ReadAllText(filePath);
 

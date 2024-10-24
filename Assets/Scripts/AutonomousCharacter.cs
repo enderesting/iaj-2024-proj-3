@@ -335,7 +335,15 @@ public class AutonomousCharacter : NPC
             }
             else if (this.TabularQLearningActive)
             {
+                if (RLLOptions == RLOptions.LoadAndPlay)
+                {
+                    string loadpath = Path.Combine(Application.persistentDataPath, "qtable.json");
+                    this.QLearning = new QLearning(LearningRate, DiscountRate, ExploreRate, this, loadpath);    
+                }
+                else
+                {
                 this.QLearning = new QLearning(LearningRate, DiscountRate, ExploreRate, this);
+                }
             }
         }
 
