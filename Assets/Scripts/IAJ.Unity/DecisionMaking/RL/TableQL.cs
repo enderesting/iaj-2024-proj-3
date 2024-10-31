@@ -47,15 +47,12 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
             {
                 foreach (TQLState.Mana mana in System.Enum.GetValues(typeof(TQLState.Mana)))
                 {
-                    foreach (TQLState.Progress progress in System.Enum.GetValues(typeof(TQLState.Progress)))
+                    foreach (TQLState.Time time in System.Enum.GetValues(typeof(TQLState.Time)))
                     {
                         foreach (TQLState.Position position in System.Enum.GetValues(typeof(TQLState.Position)))
                         {
-                            for (int level = 1; level <= 2; level++) // Assuming levels go from 1 to 2
-                            {
-                                var state = new TQLState(health, mana, progress, level, position);
-                                states.Add(state);
-                            }
+                            var state = new TQLState(health, mana, time, position);
+                            states.Add(state);
                         }
                     }
                 }                
@@ -74,7 +71,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
                 return null; // Return null if the state is not found
             }
 
-            Action bestAction = null;
+            List<Action> bestActions = new(); // List to hold actions with the best value
             float bestValue = float.MinValue;
 
             // Iterate through only the provided available actions for this state
@@ -86,14 +83,25 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
                 
                 float value = tableQLEntries[stateIndex, actionIndex].Item3;
 
-                // Find the action with the highest value
+                // Check if the current value is better than the best found value
                 if (value > bestValue)
                 {
                     bestValue = value;
-                    bestAction = action;
+                    bestActions.Clear(); // Clear previous best actions
+                    bestActions.Add(action); // Add the new best action
+                }
+                else if (value == bestValue)
+                {
+                    bestActions.Add(action); // Add to the list of best actions if the value matches the best
                 }
             }
-            return bestAction;
+
+            // If no actions found, return null
+            if (bestActions.Count == 0) return null;
+
+            // Return a random action from the best actions
+            int randomIndex = Random.Range(0, bestActions.Count);
+            return bestActions[randomIndex];
         }
 
         public float GetQValue(TQLState state, Action action)

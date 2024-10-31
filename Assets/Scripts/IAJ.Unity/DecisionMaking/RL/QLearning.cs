@@ -8,20 +8,31 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
     public class QLearning
     {
         private float learningRate;
+        private float learningRateDecay;
+        private float minLearningRate;
         private float discountRate;
         private float exploreRate;
+        private float exploreRateDecay;
+        private float minExploreRate;
         private AutonomousCharacter character;
         private TQLState currentTQLState;
         public TableQL tableQL;
         public bool InProgress;
         public Action chosenAction;
+        public int numberOfVictories = 0;
+        public int goldLastEpisode = 0;
+        public float timeLastEpisode = 0;
 
-        public QLearning(float learningRate, float discountRate, float exploreRate, AutonomousCharacter character, string loadpath = null)
+        public QLearning(float learningRate, float learningRateDecay, float minLearningRate, float discountRate, float exploreRate, float exploreRateDecay, float minExploreRate, AutonomousCharacter character, string loadpath = null)
         {
             Debug.Log("Initializing QLearning");
             this.learningRate = learningRate;
+            this.learningRateDecay = learningRateDecay;
+            this.minLearningRate = minLearningRate;
             this.discountRate = discountRate;
             this.exploreRate = exploreRate;
+            this.exploreRateDecay = exploreRateDecay;
+            this.minExploreRate = minExploreRate;
             this.character = character;
             this.tableQL = new TableQL(character.Actions, loadpath);
             InProgress = false;
@@ -74,42 +85,34 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
             var mana = currentMana > 7 ? TQLState.Mana.High :
                         currentMana > 4 ? TQLState.Mana.Medium : TQLState.Mana.Low;
 
-            // Get Money
-            int currentMoney = character.baseStats.Money;
 
             // Get Time
             float currentTime = character.baseStats.Time;
-
-            // Combine Money and Time to get Progress
-            float currentProgress = currentMoney / 25 - currentTime / GameManager.GameConstants.TIME_LIMIT;
-            var progress = currentProgress > 0.666 ? TQLState.Progress.High :
-                          currentProgress > 0.333 ? TQLState.Progress.Medium : TQLState.Progress.Low;
-
-            // We don't care about levels higher than 2
-            int level = character.baseStats.Level >= 2 ? 2 : 1;
-
+            var time = currentTime > 100 ? TQLState.Time.High :
+                           currentTime > 50 ? TQLState.Time.Medium : TQLState.Time.Low;
+                           
             // Get Position
             Vector3 position = character.transform.position;
             if (position.x < 45)
             {
                 if (position.z < 45)
                 {
-                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.BottomLeft);
+                    return new TQLState(totalHealth, mana, time, TQLState.Position.BottomLeft);
                 }
                 else
                 {
-                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.TopLeft);
+                    return new TQLState(totalHealth, mana, time, TQLState.Position.TopLeft);
                 }
             }
             else
             {
                 if (position.z < 45)
                 {
-                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.BottomRight);
+                    return new TQLState(totalHealth, mana, time, TQLState.Position.BottomRight);
                 }
                 else
                 {
-                    return new TQLState(totalHealth, mana, progress, level, TQLState.Position.TopRight);
+                    return new TQLState(totalHealth, mana, time, TQLState.Position.TopRight);
                 }
             }
         }
@@ -142,6 +145,12 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
         public Action[] GetExecutableActions()
         {
             return character.Actions.Where(a => a.CanExecute()).ToArray();
+        }
+
+        public void UpdateParameters()
+        {
+            learningRate = Mathf.Max(minLearningRate, learningRate * Mathf.Pow(learningRateDecay, character.episodeCounter));
+            exploreRate = Mathf.Max(minExploreRate, exploreRate * Mathf.Pow(exploreRateDecay, character.episodeCounter));
         }
     }
 }

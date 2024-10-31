@@ -20,7 +20,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
             var level = Character.baseStats.Level;
             var xp = Character.baseStats.XP;
 
-            return xp >= level * 10;
+            return xp >= level * 10 && level < 2;
         }
         
         public override bool CanExecute(WorldModel worldModel)
@@ -28,7 +28,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions
             int xp = (int)worldModel.GetProperty(PropertiesName.XP);
             int level = (int)worldModel.GetProperty(PropertiesName.LEVEL);
 
-            return xp >= level * 10;
+            return xp >= level * 10 && level < 2;
         }
 
         public override void Execute()

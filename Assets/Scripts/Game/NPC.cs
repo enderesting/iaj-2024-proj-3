@@ -30,7 +30,7 @@ namespace Assets.Scripts.Game
         protected GameObject character;
 
         // Pathfinding
-        protected UnityEngine.AI.NavMeshAgent navMeshAgent;
+        public UnityEngine.AI.NavMeshAgent navMeshAgent;
         private Vector3 previousTarget;
 
         public Stats baseStats;

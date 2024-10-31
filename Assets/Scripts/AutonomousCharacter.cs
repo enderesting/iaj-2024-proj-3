@@ -139,9 +139,13 @@ public class AutonomousCharacter : NPC
     //For Reinforcement Learning
     public float Reward = 0f;
     public int MaxEpisodes = 100;
-    public float LearningRate = 0.5f;
-    public float DiscountRate = 0.5f;
-    public float ExploreRate = 0.2f;
+    public float LearningRate = 1f;
+    public float LearningRateDecay = 0.99f;
+    public float MinLearningRate = 0.1f;
+    public float DiscountRate = 0.95f;
+    public float ExploreRate = 1f;
+    public float ExploreRateDecay = 0.95f;
+    public float MinExploreRate = 0.01f;
 
     public int episodeCounter = 1;
 
@@ -338,11 +342,11 @@ public class AutonomousCharacter : NPC
                 if (RLLOptions == RLOptions.LoadAndPlay)
                 {
                     string loadpath = Path.Combine(Application.persistentDataPath, "qtable.json");
-                    this.QLearning = new QLearning(LearningRate, DiscountRate, ExploreRate, this, loadpath);    
+                    this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this, loadpath);    
                 }
                 else
                 {
-                this.QLearning = new QLearning(LearningRate, DiscountRate, ExploreRate, this);
+                this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this);
                 }
             }
         }
@@ -361,10 +365,10 @@ public class AutonomousCharacter : NPC
                     QLearning.UpdateQValue(Reward);
                     AddToDiary(" Reward: " + Reward);
                     Reward = 0;
-                    
+                    QLearning.UpdateParameters();
+
                     Debug.Log("Save Brain to: " + savePath);
                     QLearning.tableQL.SaveQTable(savePath);
-
                 }
 
                 episodeCounter++;
@@ -782,7 +786,10 @@ public class AutonomousCharacter : NPC
             }
         }
         //Statistical and Debug Data
-        this.ProcessedActionsText.text = "Episode #: " + episodeCounter + "\n";
+        this.TotalProcessingTimeText.text = "Episode #: " + episodeCounter + "\n";
+        this.ProcessedActionsText.text = "Number of victories: " + QLearning.numberOfVictories + "\n";
+        this.BestDiscontentmentText.text = "Gold last episode: " + QLearning.goldLastEpisode + "\n"
+            + "Time last episode: " + QLearning.timeLastEpisode + "\n";
     }
 
 

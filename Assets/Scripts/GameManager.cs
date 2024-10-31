@@ -172,14 +172,24 @@ public class GameManager : MonoBehaviour
                 this.GameEnd.SetActive(true);
                 this.gameEnded = true;
                 this.GameEnd.GetComponentInChildren<Text>().text = "You Died";
-                if (RLActive) { Character.Reward -= 100f; }
+                if (RLActive) { 
+                    Character.Reward -= 100f; 
+                    Character.QLearning.goldLastEpisode = Character.baseStats.Money;
+                    Character.QLearning.timeLastEpisode = Character.baseStats.Time;
+                }
             }
             else if (this.Character.baseStats.Money >= 25)
             {
                 this.GameEnd.SetActive(true);
                 this.gameEnded = true;
                 this.GameEnd.GetComponentInChildren<Text>().text = "Victory \n GG EZ";
-                if (RLActive) { Character.Reward += 100f; }
+                if (RLActive)
+                { 
+                    Character.Reward += 100f;
+                    Character.QLearning.numberOfVictories++;
+                    Character.QLearning.goldLastEpisode = Character.baseStats.Money;
+                    Character.QLearning.timeLastEpisode = Character.baseStats.Time; 
+                }
             }
         }
     }
@@ -252,6 +262,7 @@ public class GameManager : MonoBehaviour
             {
                 this.Character.baseStats.HP -= remainingDamage;
             }
+            if (RLActive) { this.Character.Reward -= 6f; }
 
             this.WorldChanged = true;
         }
@@ -327,6 +338,7 @@ public class GameManager : MonoBehaviour
                 //Object.Destroy(enemy);
                 this.Character.baseStats.Mana -= 2;
                 this.WorldChanged = true;
+                if (this.RLActive) { this.Character.Reward -= 3f; }
             }
         }
     }
@@ -338,7 +350,7 @@ public class GameManager : MonoBehaviour
             this.Character.baseStats.ShieldHP = 5;
             this.Character.baseStats.Mana -= 5;
             this.Character.AddToDiary(" My Shield of Faith will protect me!");
-            if (this.RLActive) { this.Character.Reward += 4f; }
+            if (this.RLActive) { this.Character.Reward += (Character.baseStats.MaxShieldHp - Character.baseStats.ShieldHP) / 6; }
             this.WorldChanged = true;
         }
     }
@@ -353,7 +365,7 @@ public class GameManager : MonoBehaviour
             this.DisposableObjects[chest.name] = null;
             chest.SetActive(false);
             this.Character.baseStats.Money += 5;
-            if (this.RLActive) this.Character.Reward += 10f;
+            if (this.RLActive) this.Character.Reward += 6f;
             this.WorldChanged = true;
         }
     }
@@ -378,6 +390,13 @@ public class GameManager : MonoBehaviour
             this.Character.AddToDiary(" I drank " + potion.name);
             this.DisposableObjects[potion.name] = null;
             potion.SetActive(false);
+            if (this.RLActive) {
+                int recoveredHealth = Character.baseStats.MaxHP - Character.baseStats.HP;
+                if (recoveredHealth <= 5)
+                {
+                    this.Character.Reward -= 5.0f; 
+                }
+            }
             this.Character.baseStats.HP = this.Character.baseStats.MaxHP;
             this.WorldChanged = true;
         }
@@ -385,7 +404,7 @@ public class GameManager : MonoBehaviour
 
     public void LevelUp()
     {
-        if (this.Character.baseStats.Level >= 4) return;
+        if (this.Character.baseStats.Level >= 2) return;
 
         if (this.Character.baseStats.XP >= this.Character.baseStats.Level * 10)
         {
@@ -402,7 +421,7 @@ public class GameManager : MonoBehaviour
                 this.Character.baseStats.XP = 0;
                 this.Character.AddToDiary(" I leveled up to level " + this.Character.baseStats.Level);
                 this.Character.LevelingUp = false;
-                if (this.RLActive) this.Character.Reward += 15f;
+                if (this.RLActive) this.Character.Reward += GameConstants.TIME_LIMIT * 4 / Character.baseStats.Time;
                 this.WorldChanged = true;
             }
         }
@@ -413,9 +432,9 @@ public class GameManager : MonoBehaviour
         if (this.Character.baseStats.Level >= 2 && this.Character.baseStats.Mana >= 7)
         {
             this.Character.AddToDiary(" With my Mana I Lay Hands and recovered all my health.");
+            if (this.RLActive) { this.Character.Reward += (Character.baseStats.MaxHP - Character.baseStats.HP) / 6; }
             this.Character.baseStats.HP = this.Character.baseStats.MaxHP;
             this.Character.baseStats.Mana -= 7;
-            if (this.RLActive) { this.Character.Reward += 4f; }
             this.WorldChanged = true;
         }
     }
@@ -461,7 +480,7 @@ public class GameManager : MonoBehaviour
         if (this.Character.baseStats.Level >= 2 && this.Character.baseStats.Mana >= 5)
         {
             this.Character.AddToDiary(" With my Mana I teleported away from danger.");
-            this.Character.transform.position = this.initialPosition;
+            this.Character.navMeshAgent.Warp(this.initialPosition);
             this.Character.baseStats.Mana -= 5;
             this.WorldChanged = true;
         }
