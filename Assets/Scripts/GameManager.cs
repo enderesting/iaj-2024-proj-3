@@ -350,7 +350,7 @@ public class GameManager : MonoBehaviour
             this.Character.baseStats.ShieldHP = 5;
             this.Character.baseStats.Mana -= 5;
             this.Character.AddToDiary(" My Shield of Faith will protect me!");
-            if (this.RLActive) { this.Character.Reward += (Character.baseStats.MaxShieldHp - Character.baseStats.ShieldHP) / 6; }
+            if (this.RLActive) { this.Character.Reward -= 1; }
             this.WorldChanged = true;
         }
     }
@@ -379,6 +379,7 @@ public class GameManager : MonoBehaviour
             this.DisposableObjects[manaPotion.name] = null;
             manaPotion.SetActive(false);
             this.Character.baseStats.Mana = 10;
+            if (this.RLActive) this.Character.Reward -= 1.0f;
             this.WorldChanged = true;
         }
     }
@@ -396,6 +397,10 @@ public class GameManager : MonoBehaviour
                 {
                     this.Character.Reward -= 5.0f; 
                 }
+                else
+                {
+                    this.Character.Reward -= 1.0f;
+                }
             }
             this.Character.baseStats.HP = this.Character.baseStats.MaxHP;
             this.WorldChanged = true;
@@ -404,7 +409,7 @@ public class GameManager : MonoBehaviour
 
     public void LevelUp()
     {
-        if (this.Character.baseStats.Level >= 2) return;
+        if (this.Character.baseStats.Level >= 4) return;
 
         if (this.Character.baseStats.XP >= this.Character.baseStats.Level * 10)
         {
@@ -432,7 +437,7 @@ public class GameManager : MonoBehaviour
         if (this.Character.baseStats.Level >= 2 && this.Character.baseStats.Mana >= 7)
         {
             this.Character.AddToDiary(" With my Mana I Lay Hands and recovered all my health.");
-            if (this.RLActive) { this.Character.Reward += (Character.baseStats.MaxHP - Character.baseStats.HP) / 6; }
+            if (this.RLActive) { this.Character.Reward -= 1.0f; }
             this.Character.baseStats.HP = this.Character.baseStats.MaxHP;
             this.Character.baseStats.Mana -= 7;
             this.WorldChanged = true;
@@ -482,6 +487,7 @@ public class GameManager : MonoBehaviour
             this.Character.AddToDiary(" With my Mana I teleported away from danger.");
             this.Character.navMeshAgent.Warp(this.initialPosition);
             this.Character.baseStats.Mana -= 5;
+            if (this.RLActive) { this.Character.Reward -= 1.0f; }
             this.WorldChanged = true;
         }
 

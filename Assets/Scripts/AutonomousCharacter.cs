@@ -146,8 +146,11 @@ public class AutonomousCharacter : NPC
     public float ExploreRate = 1f;
     public float ExploreRateDecay = 0.95f;
     public float MinExploreRate = 0.01f;
-
     public int episodeCounter = 1;
+
+    private List<float> episodeTimes = new();
+    private List<int> episodeGolds = new();
+    private List<int> episodeVictories = new();
 
     public float StopTime { get; set; }
 
@@ -366,6 +369,12 @@ public class AutonomousCharacter : NPC
                     AddToDiary(" Reward: " + Reward);
                     Reward = 0;
                     QLearning.UpdateParameters();
+
+                    episodeTimes.Add(QLearning.timeLastEpisode);
+                    episodeGolds.Add(QLearning.goldLastEpisode);
+                    episodeVictories.Add(QLearning.numberOfVictories);
+
+                    SaveEpisodeDataCSV();
 
                     Debug.Log("Save Brain to: " + savePath);
                     QLearning.tableQL.SaveQTable(savePath);
@@ -910,4 +919,19 @@ public class AutonomousCharacter : NPC
                 playerText.text = "";
             }
     }
+
+    private void SaveEpisodeDataCSV()
+    {
+        string savePath = Path.Combine(Application.persistentDataPath, "episodeData.csv");
+        using (StreamWriter writer = new(savePath))
+        {
+            writer.WriteLine("Episode,TimeAlive,GoldAccumulated,TotalVictories");
+            for (int i = 0; i < episodeTimes.Count; i++)
+            {
+                writer.WriteLine($"{i + 1},{episodeTimes[i]},{episodeGolds[i]},{episodeVictories[i]}");
+            }
+        }
+        Debug.Log("Episode data saved to: " + savePath);
+    }
+
 }
