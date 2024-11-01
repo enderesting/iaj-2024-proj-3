@@ -137,7 +137,8 @@ public class AutonomousCharacter : NPC
     public GameObject NearEnemy { get; private set; }
 
     //For Reinforcement Learning
-    public float Reward = 0f;
+    public float Reward = 0f; // this gets reset every move
+    public float RewardPerEpisode = 0f;
     public int MaxEpisodes = 100;
     public float LearningRate = 1f;
     public float LearningRateDecay = 0.99f;
@@ -148,6 +149,7 @@ public class AutonomousCharacter : NPC
     public float MinExploreRate = 0.01f;
     public int episodeCounter = 1;
 
+    private List<float> episodeRewards = new();
     private List<float> episodeTimes = new();
     private List<int> episodeGolds = new();
     private List<int> episodeVictories = new();
@@ -366,8 +368,11 @@ public class AutonomousCharacter : NPC
                 if (this.RLLOptions != RLOptions.LoadAndPlay)
                 {
                     QLearning.UpdateQValue(Reward);
-                    AddToDiary(" Reward: " + Reward);
+                    RewardPerEpisode += Reward;
+                    AddToDiary(" Reward at the End of Episode: " + RewardPerEpisode);
+                    episodeRewards.Add(RewardPerEpisode);
                     Reward = 0;
+                    RewardPerEpisode = 0;
                     QLearning.UpdateParameters();
 
                     episodeTimes.Add(QLearning.timeLastEpisode);
@@ -520,7 +525,8 @@ public class AutonomousCharacter : NPC
         this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
         {
             QLearning.UpdateQValue(Reward);
-            AddToDiary(" Reward: " + Reward);
+            AddToDiary(" Reward after action: " + Reward);
+            RewardPerEpisode += Reward;
             Reward = 0;
         }
 
@@ -925,10 +931,10 @@ public class AutonomousCharacter : NPC
         string savePath = Path.Combine(Application.persistentDataPath, "episodeData.csv");
         using (StreamWriter writer = new(savePath))
         {
-            writer.WriteLine("Episode,TimeAlive,GoldAccumulated,TotalVictories");
+            writer.WriteLine("Episode,EpisodeRewards,TimeAlive,GoldAccumulated,TotalVictories");
             for (int i = 0; i < episodeTimes.Count; i++)
             {
-                writer.WriteLine($"{i + 1},{episodeTimes[i]},{episodeGolds[i]},{episodeVictories[i]}");
+                writer.WriteLine($"{i + 1},{episodeRewards[i]},{episodeTimes[i]},{episodeGolds[i]},{episodeVictories[i]}");
             }
         }
         Debug.Log("Episode data saved to: " + savePath);
