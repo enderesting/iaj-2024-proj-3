@@ -12,8 +12,8 @@ using Assets.Scripts.IAJ.Unity.Utils;
 using System;
 using static GameManager;
 using Action = Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions.Action;
-using Assets.Scripts.IAJ.Unity.DecisionMaking;
-using RL;
+using Assets.Scripts.IAJ.Unity.DecisionMaking.RL;
+using System.IO;
 
 public class AutonomousCharacter : NPC
 {
@@ -97,7 +97,7 @@ public class AutonomousCharacter : NPC
     public RLOptions RLLOptions;
 
     [Header("Decision Algorithm Options")]
-    public bool ReactToEnemy = true;
+    public bool ReactToEnemy = false;
  
     //[Header("Hero Actions")]
     public bool LevelUp = true;
@@ -137,10 +137,20 @@ public class AutonomousCharacter : NPC
     public GameObject NearEnemy { get; private set; }
 
     //For Reinforcement Learning
-    public float Reward;
+    public float Reward = 0f;
     public int MaxEpisodes = 100;
-    public float LearningRate = 0.05f;
+    public float LearningRate = 1f;
+    public float LearningRateDecay = 0.99f;
+    public float MinLearningRate = 0.1f;
+    public float DiscountRate = 0.95f;
+    public float ExploreRate = 1f;
+    public float ExploreRateDecay = 0.95f;
+    public float MinExploreRate = 0.01f;
     public int episodeCounter = 1;
+
+    private List<float> episodeTimes = new();
+    private List<int> episodeGolds = new();
+    private List<int> episodeVictories = new();
 
     public float StopTime { get; set; }
 
@@ -158,6 +168,7 @@ public class AutonomousCharacter : NPC
     private int previousLevel = 1;
     public TextMesh playerText;
     private GameObject closestObject;
+    private string savePath;
 
     // Draw path settings
     private LineRenderer lineRenderer;
@@ -180,6 +191,9 @@ public class AutonomousCharacter : NPC
         //This is the actual speed of the agent
         lineRenderer = this.GetComponent<LineRenderer>();
         playerText.text = "";
+        
+        // define savePath
+        savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
 
 
         // Initializing UI Text
@@ -203,6 +217,7 @@ public class AutonomousCharacter : NPC
         GOAPActive = (characterControl == CharacterControlType.GOAP);
         MCTSActive = (characterControl == CharacterControlType.MCTS);
         MCTSBiasedPlayoutActive = (characterControl == CharacterControlType.MCTS_BiasedPlayout);
+        TabularQLearningActive = characterControl == CharacterControlType.TabularQLearning;
 
 
         //initialization of the GOB decision making
@@ -325,6 +340,18 @@ public class AutonomousCharacter : NPC
                 var WorldModel = new DictionaryWorldModel(GameManager.Instance, this, this.Actions, this.Goals);
                 this.MCTSDecisionMaking = new MCTSBiased(WorldModel, MCTS_MaxIterations, MCTS_MaxIterationsPerFrame, MCTS_NumberPlayouts, MCTS_MaxPlayoutDepth, 1.0f);
             }
+            else if (this.TabularQLearningActive)
+            {
+                if (RLLOptions == RLOptions.LoadAndPlay)
+                {
+                    string loadpath = Path.Combine(Application.persistentDataPath, "qtable.json");
+                    this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this, loadpath);    
+                }
+                else
+                {
+                this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this);
+                }
+            }
         }
 
         DiaryText.text += "My Diary \n I awoke. What a wonderful day to kill Monsters! \n";
@@ -336,15 +363,36 @@ public class AutonomousCharacter : NPC
         {
             if (episodeCounter < MaxEpisodes)
             {
+                if (this.RLLOptions != RLOptions.LoadAndPlay)
+                {
+                    QLearning.UpdateQValue(Reward);
+                    AddToDiary(" Reward: " + Reward);
+                    Reward = 0;
+                    QLearning.UpdateParameters();
+
+                    episodeTimes.Add(QLearning.timeLastEpisode);
+                    episodeGolds.Add(QLearning.goldLastEpisode);
+                    episodeVictories.Add(QLearning.numberOfVictories);
+
+                    SaveEpisodeDataCSV();
+
+                    Debug.Log("Save Brain to: " + savePath);
+                    QLearning.tableQL.SaveQTable(savePath);
+                }
+
                 episodeCounter++;
                 GameManager.Instance.RestartGame();
+                AddToDiary(" Episode: " + episodeCounter);
                 Debug.Log("Episode: " +  episodeCounter);
 
                 //Do here end-of-episode stuff
+                // string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
+
+                this.QLearning.InitializeQLearning();
 
                 return;
             }
-
+            Time.timeScale = 0; // Freeze the game
             //Do here end-of-training stuff
             return;
         }
@@ -356,7 +404,7 @@ public class AutonomousCharacter : NPC
             if (enemy != null)
             {
                 if (ReactToEnemy) GameManager.Instance.WorldChanged = true;
-                AddToDiary(" There is " + enemy.name + " in front of me!");
+                // AddToDiary(" There is " + enemy.name + " in front of me!");
                 this.NearEnemy = enemy;
             }
             else
@@ -404,7 +452,7 @@ public class AutonomousCharacter : NPC
             }
             else if (TabularQLearningActive)
             {
-                throw new Exception("Tabular Q-Learning Needs to be initialized...");
+                this.QLearning.InitializeQLearning();
             }
         }
 
@@ -451,6 +499,11 @@ public class AutonomousCharacter : NPC
         {
             this.UpdateMCTS();
         }
+        else if (this.TabularQLearningActive &&
+        this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
+        {
+            this.UpdateQLearning();
+        }
         //ToDo Update your RL algorithms here...
 
  
@@ -463,12 +516,18 @@ public class AutonomousCharacter : NPC
             }
         }
 
+        if (this.TabularQLearningActive && GameManager.Instance.WorldChanged && this.RLLOptions != RLOptions.LoadAndPlay &&
+        this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
+        {
+            QLearning.UpdateQValue(Reward);
+            AddToDiary(" Reward: " + Reward);
+            Reward = 0;
+        }
+
         if (navMeshAgent.hasPath)
         {
             DrawPath();
         }
-
-
     }
 
     private void UpdateGoalsInsistence()
@@ -724,6 +783,24 @@ public class AutonomousCharacter : NPC
 
     }
 
+    private void UpdateQLearning()
+    {
+        if (this.QLearning.InProgress)
+        {
+            var action = this.QLearning.ChooseAction();
+            if (action != null)
+            {
+                this.CurrentAction = action;
+                AddToDiary(" I decided to " + action.Name);
+            }
+        }
+        //Statistical and Debug Data
+        this.TotalProcessingTimeText.text = "Episode #: " + episodeCounter + "\n";
+        this.ProcessedActionsText.text = "Number of victories: " + QLearning.numberOfVictories + "\n";
+        this.BestDiscontentmentText.text = "Gold last episode: " + QLearning.goldLastEpisode + "\n"
+            + "Time last episode: " + QLearning.timeLastEpisode + "\n";
+    }
+
 
     public override void Restart()
     {
@@ -842,4 +919,19 @@ public class AutonomousCharacter : NPC
                 playerText.text = "";
             }
     }
+
+    private void SaveEpisodeDataCSV()
+    {
+        string savePath = Path.Combine(Application.persistentDataPath, "episodeData.csv");
+        using (StreamWriter writer = new(savePath))
+        {
+            writer.WriteLine("Episode,TimeAlive,GoldAccumulated,TotalVictories");
+            for (int i = 0; i < episodeTimes.Count; i++)
+            {
+                writer.WriteLine($"{i + 1},{episodeTimes[i]},{episodeGolds[i]},{episodeVictories[i]}");
+            }
+        }
+        Debug.Log("Episode data saved to: " + savePath);
+    }
+
 }

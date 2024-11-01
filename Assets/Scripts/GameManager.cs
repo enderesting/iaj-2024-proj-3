@@ -10,6 +10,7 @@ using Object = UnityEngine.Object;
 using UnityEngine.SceneManagement;
 using Assets.Scripts.Game;
 using static UnityEngine.EventSystems.EventTrigger;
+using Assets.Scripts.IAJ.Unity.DecisionMaking.ForwardModel;
 
 public class GameManager : MonoBehaviour
 {
@@ -142,7 +143,7 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        this.RLActive = (Character.TabularQLearningActive || Character.NNLearningActive);
+        this.RLActive = Character.TabularQLearningActive || Character.NNLearningActive;
     }
 
     void FixedUpdate()
@@ -171,14 +172,24 @@ public class GameManager : MonoBehaviour
                 this.GameEnd.SetActive(true);
                 this.gameEnded = true;
                 this.GameEnd.GetComponentInChildren<Text>().text = "You Died";
-                if (RLActive) { Character.Reward -= 100f; }
+                if (RLActive) { 
+                    Character.Reward -= 100f; 
+                    Character.QLearning.goldLastEpisode = Character.baseStats.Money;
+                    Character.QLearning.timeLastEpisode = Character.baseStats.Time;
+                }
             }
             else if (this.Character.baseStats.Money >= 25)
             {
                 this.GameEnd.SetActive(true);
                 this.gameEnded = true;
                 this.GameEnd.GetComponentInChildren<Text>().text = "Victory \n GG EZ";
-                if (RLActive) { Character.Reward += 100f; }
+                if (RLActive)
+                { 
+                    Character.Reward += 100f;
+                    Character.QLearning.numberOfVictories++;
+                    Character.QLearning.goldLastEpisode = Character.baseStats.Money;
+                    Character.QLearning.timeLastEpisode = Character.baseStats.Time; 
+                }
             }
         }
     }
@@ -229,7 +240,7 @@ public class GameManager : MonoBehaviour
                 {
                     //there was an hit, enemy is destroyed, gain xp
                     
-                    this.enemies.Remove(enemy);
+                    // this.enemies.Remove(enemy);
                     this.DisposableObjects[enemy.name] = null;
                     enemy.SetActive(false);
                 }
@@ -237,7 +248,7 @@ public class GameManager : MonoBehaviour
             else
             {
                 damage = enemyData.SimpleDamage;
-                this.enemies.Remove(enemy);
+                // this.enemies.Remove(enemy);
                 this.DisposableObjects[enemy.name] = null;
                 enemy.SetActive(false);
             }
@@ -251,6 +262,7 @@ public class GameManager : MonoBehaviour
             {
                 this.Character.baseStats.HP -= remainingDamage;
             }
+            if (RLActive) { this.Character.Reward -= 6f; }
 
             this.WorldChanged = true;
         }
@@ -282,7 +294,7 @@ public class GameManager : MonoBehaviour
                     {
                         //there was an hit, enemy is destroyed, gain xp
                         //RemoveOrcFromFormation(monster);
-                        this.enemies.Remove(enemy);
+                        // this.enemies.Remove(enemy);
                         this.DisposableObjects[enemy.name] = null;
                         enemy.SetActive(false);
                     }
@@ -291,7 +303,7 @@ public class GameManager : MonoBehaviour
                 {
                     damage = monster.stats.SimpleDamage;
                     //RemoveOrcFromFormation(monster);
-                    this.enemies.Remove(enemy);
+                    // this.enemies.Remove(enemy);
                     this.DisposableObjects[enemy.name] = null;
                     enemy.SetActive(false);
                 }
@@ -320,14 +332,14 @@ public class GameManager : MonoBehaviour
             {
                 this.Character.baseStats.XP += 3;
                 this.Character.AddToDiary(" I Smited " + enemy.name);
-                this.enemies.Remove(enemy);
+                // this.enemies.Remove(enemy);
                 this.DisposableObjects[enemy.name] = null;
                 enemy.SetActive(false);
                 //Object.Destroy(enemy);
+                this.Character.baseStats.Mana -= 2;
+                this.WorldChanged = true;
+                if (this.RLActive) { this.Character.Reward -= 3f; }
             }
-            this.Character.baseStats.Mana -= 2;
-
-            this.WorldChanged = true;
         }
     }
 
@@ -338,6 +350,7 @@ public class GameManager : MonoBehaviour
             this.Character.baseStats.ShieldHP = 5;
             this.Character.baseStats.Mana -= 5;
             this.Character.AddToDiary(" My Shield of Faith will protect me!");
+            if (this.RLActive) { this.Character.Reward -= 1; }
             this.WorldChanged = true;
         }
     }
@@ -348,10 +361,11 @@ public class GameManager : MonoBehaviour
         if (chest != null && chest.activeSelf && InChestRange(chest))
         {
             this.Character.AddToDiary(" I opened  " + chest.name);
-            this.chests.Remove(chest);
+            // this.chests.Remove(chest);
             this.DisposableObjects[chest.name] = null;
             chest.SetActive(false);
             this.Character.baseStats.Money += 5;
+            if (this.RLActive) this.Character.Reward += 6f;
             this.WorldChanged = true;
         }
     }
@@ -365,6 +379,7 @@ public class GameManager : MonoBehaviour
             this.DisposableObjects[manaPotion.name] = null;
             manaPotion.SetActive(false);
             this.Character.baseStats.Mana = 10;
+            if (this.RLActive) this.Character.Reward -= 1.0f;
             this.WorldChanged = true;
         }
     }
@@ -376,6 +391,17 @@ public class GameManager : MonoBehaviour
             this.Character.AddToDiary(" I drank " + potion.name);
             this.DisposableObjects[potion.name] = null;
             potion.SetActive(false);
+            if (this.RLActive) {
+                int recoveredHealth = Character.baseStats.MaxHP - Character.baseStats.HP;
+                if (recoveredHealth <= 5)
+                {
+                    this.Character.Reward -= 5.0f; 
+                }
+                else
+                {
+                    this.Character.Reward -= 1.0f;
+                }
+            }
             this.Character.baseStats.HP = this.Character.baseStats.MaxHP;
             this.WorldChanged = true;
         }
@@ -400,6 +426,7 @@ public class GameManager : MonoBehaviour
                 this.Character.baseStats.XP = 0;
                 this.Character.AddToDiary(" I leveled up to level " + this.Character.baseStats.Level);
                 this.Character.LevelingUp = false;
+                if (this.RLActive) this.Character.Reward += GameConstants.TIME_LIMIT * 4 / Character.baseStats.Time;
                 this.WorldChanged = true;
             }
         }
@@ -410,6 +437,7 @@ public class GameManager : MonoBehaviour
         if (this.Character.baseStats.Level >= 2 && this.Character.baseStats.Mana >= 7)
         {
             this.Character.AddToDiary(" With my Mana I Lay Hands and recovered all my health.");
+            if (this.RLActive) { this.Character.Reward -= 1.0f; }
             this.Character.baseStats.HP = this.Character.baseStats.MaxHP;
             this.Character.baseStats.Mana -= 7;
             this.WorldChanged = true;
@@ -457,8 +485,9 @@ public class GameManager : MonoBehaviour
         if (this.Character.baseStats.Level >= 2 && this.Character.baseStats.Mana >= 5)
         {
             this.Character.AddToDiary(" With my Mana I teleported away from danger.");
-            this.Character.transform.position = this.initialPosition;
+            this.Character.navMeshAgent.Warp(this.initialPosition);
             this.Character.baseStats.Mana -= 5;
+            if (this.RLActive) { this.Character.Reward -= 1.0f; }
             this.WorldChanged = true;
         }
 
@@ -491,5 +520,4 @@ public class GameManager : MonoBehaviour
     {
         return this.CheckRange(potion, GameConstants.PICKUP_RANGE);
     }
-
 }
