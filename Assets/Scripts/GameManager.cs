@@ -173,9 +173,12 @@ public class GameManager : MonoBehaviour
                 this.gameEnded = true;
                 this.GameEnd.GetComponentInChildren<Text>().text = "You Died";
                 if (RLActive) { 
-                    Character.Reward -= 100f; 
-                    Character.QLearning.goldLastEpisode = Character.baseStats.Money;
-                    Character.QLearning.timeLastEpisode = Character.baseStats.Time;
+                    Character.Reward -= 100f;
+                    if(Character.TabularQLearningActive)
+                    {
+                        Character.QLearning.goldLastEpisode = Character.baseStats.Money;
+                        Character.QLearning.timeLastEpisode = Character.baseStats.Time;
+                    }
                 }
             }
             else if (this.Character.baseStats.Money >= 25)
@@ -186,9 +189,12 @@ public class GameManager : MonoBehaviour
                 if (RLActive)
                 { 
                     Character.Reward += 100f;
-                    Character.QLearning.numberOfVictories++;
-                    Character.QLearning.goldLastEpisode = Character.baseStats.Money;
-                    Character.QLearning.timeLastEpisode = Character.baseStats.Time; 
+                    if (Character.TabularQLearningActive)
+                    {
+                        Character.QLearning.numberOfVictories++;
+                        Character.QLearning.goldLastEpisode = Character.baseStats.Money;
+                        Character.QLearning.timeLastEpisode = Character.baseStats.Time;
+                    } 
                 }
             }
         }
