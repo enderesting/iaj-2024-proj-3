@@ -14,6 +14,7 @@ using static GameManager;
 using Action = Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions.Action;
 using Assets.Scripts.IAJ.Unity.DecisionMaking.RL;
 using System.IO;
+using IAJ.Unity.DecisionMaking.RL;
 
 public class AutonomousCharacter : NPC
 {
@@ -132,6 +133,7 @@ public class AutonomousCharacter : NPC
     public DepthLimitedGOAPDecisionMaking GOAPDecisionMaking { get; set; }
     public MCTS MCTSDecisionMaking { get; set; } 
     public QLearning QLearning { get; set;} 
+    public NeuralNetwork NeuralNetwork { get; set; }
 
     //public PolicyLearning PolicyLearning { get; set; }
     public GameObject NearEnemy { get; private set; }
@@ -218,6 +220,7 @@ public class AutonomousCharacter : NPC
         MCTSActive = (characterControl == CharacterControlType.MCTS);
         MCTSBiasedPlayoutActive = (characterControl == CharacterControlType.MCTS_BiasedPlayout);
         TabularQLearningActive = characterControl == CharacterControlType.TabularQLearning;
+        NNLearningActive = characterControl == CharacterControlType.NeuralNetwork;
 
 
         //initialization of the GOB decision making
@@ -352,6 +355,21 @@ public class AutonomousCharacter : NPC
                 this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this);
                 }
             }
+            else if (this.NNLearningActive)
+            {
+                if (RLLOptions == RLOptions.LoadAndPlay)
+                {
+                    string loadpath = Path.Combine(Application.persistentDataPath, "neuralnetwork.json");
+                    /*this.NeuralNetwork =
+                        new NeuralNetwork(, LearningRate, NeuralNetwork.ActivationFunction.Sigmoid, true, loadpath);*/
+                }
+                else
+                {
+                    int[] layers = { GameManager.Instance.DisposableObjects.Values.Count * 2 + 7, 16, 16, Actions.Count };
+                    this.NeuralNetwork =
+                        new NeuralNetwork(this, layers, LearningRate, DiscountRate, NeuralNetwork.ActivationFunction.Sigmoid, true);
+                }
+            }
         }
 
         DiaryText.text += "My Diary \n I awoke. What a wonderful day to kill Monsters! \n";
@@ -361,34 +379,51 @@ public class AutonomousCharacter : NPC
     {
         if (GameManager.Instance.gameEnded)
         {
-            if (episodeCounter < MaxEpisodes)
+            if (TabularQLearningActive)
             {
-                if (this.RLLOptions != RLOptions.LoadAndPlay)
+                if (episodeCounter < MaxEpisodes)
                 {
-                    QLearning.UpdateQValue(Reward);
-                    AddToDiary(" Reward: " + Reward);
-                    Reward = 0;
-                    QLearning.UpdateParameters();
+                    if (this.RLLOptions != RLOptions.LoadAndPlay)
+                    {
+                        QLearning.UpdateQValue(Reward);
+                        AddToDiary(" Reward: " + Reward);
+                        Reward = 0;
+                        QLearning.UpdateParameters();
 
-                    episodeTimes.Add(QLearning.timeLastEpisode);
-                    episodeGolds.Add(QLearning.goldLastEpisode);
-                    episodeVictories.Add(QLearning.numberOfVictories);
+                        episodeTimes.Add(QLearning.timeLastEpisode);
+                        episodeGolds.Add(QLearning.goldLastEpisode);
+                        episodeVictories.Add(QLearning.numberOfVictories);
 
-                    SaveEpisodeDataCSV();
+                        SaveEpisodeDataCSV();
 
-                    Debug.Log("Save Brain to: " + savePath);
-                    QLearning.tableQL.SaveQTable(savePath);
+                        Debug.Log("Save Brain to: " + savePath);
+                        QLearning.tableQL.SaveQTable(savePath);
+                    }
+
+                    episodeCounter++;
+                    GameManager.Instance.RestartGame();
+                    AddToDiary(" Episode: " + episodeCounter);
+                    Debug.Log("Episode: " + episodeCounter);
+
+                    //Do here end-of-episode stuff
+                    // string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
+
+                    this.QLearning.InitializeQLearning();
+
+                    return;
                 }
-
+            } else if (NNLearningActive)
+            {
+                NeuralNetwork.SetLastActionReward(Reward);
+                AddToDiary(" Reward: " + Reward);
+                Reward = 0;
+                NeuralNetwork.TrainEpisode();
+                
                 episodeCounter++;
                 GameManager.Instance.RestartGame();
                 AddToDiary(" Episode: " + episodeCounter);
-                Debug.Log("Episode: " +  episodeCounter);
-
-                //Do here end-of-episode stuff
-                // string savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
-
-                this.QLearning.InitializeQLearning();
+                Debug.Log("Episode: " + episodeCounter);
+                NeuralNetwork.InProgress = true;
 
                 return;
             }
@@ -453,6 +488,9 @@ public class AutonomousCharacter : NPC
             else if (TabularQLearningActive)
             {
                 this.QLearning.InitializeQLearning();
+            } else if (NNLearningActive)
+            {
+                this.NeuralNetwork.InProgress = true;
             }
         }
 
@@ -504,6 +542,11 @@ public class AutonomousCharacter : NPC
         {
             this.UpdateQLearning();
         }
+        else if (this.NNLearningActive && this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT &&
+                 baseStats.Money < 25)
+        {
+            this.UpdateNeuralNetwork();
+        }
         //ToDo Update your RL algorithms here...
 
  
@@ -520,6 +563,13 @@ public class AutonomousCharacter : NPC
         this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
         {
             QLearning.UpdateQValue(Reward);
+            AddToDiary(" Reward: " + Reward);
+            Reward = 0;
+        }
+        if (this.NNLearningActive && GameManager.Instance.WorldChanged && this.RLLOptions != RLOptions.LoadAndPlay &&
+            this.baseStats.HP > 0 && this.baseStats.Time < GameConstants.TIME_LIMIT && baseStats.Money < 25)
+        {
+            NeuralNetwork.SetLastActionReward(Reward);
             AddToDiary(" Reward: " + Reward);
             Reward = 0;
         }
@@ -799,6 +849,24 @@ public class AutonomousCharacter : NPC
         this.ProcessedActionsText.text = "Number of victories: " + QLearning.numberOfVictories + "\n";
         this.BestDiscontentmentText.text = "Gold last episode: " + QLearning.goldLastEpisode + "\n"
             + "Time last episode: " + QLearning.timeLastEpisode + "\n";
+    }
+    
+    private void UpdateNeuralNetwork()
+    {
+        if (this.NeuralNetwork.InProgress)
+        {
+            var action = this.NeuralNetwork.ChooseAction();
+            if (action != null)
+            {
+                this.CurrentAction = action;
+                AddToDiary(" I decided to " + action.Name);
+            }
+        }
+        //Statistical and Debug Data
+        this.TotalProcessingTimeText.text = "Episode #: " + episodeCounter + "\n";
+        this.ProcessedActionsText.text = "Number of victories: " + NeuralNetwork.numberOfVictories + "\n";
+        this.BestDiscontentmentText.text = "Gold last episode: " + NeuralNetwork.goldLastEpisode + "\n"
+                                           + "Time last episode: " + NeuralNetwork.timeLastEpisode + "\n";
     }
 
 

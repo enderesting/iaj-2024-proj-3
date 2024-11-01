@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Action = Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions.Action;
 
 namespace IAJ.Unity.DecisionMaking.RL
 {
@@ -10,63 +11,33 @@ namespace IAJ.Unity.DecisionMaking.RL
     private float gamma; // Discount factor
     private float learningRate; // Learning rate for policy update
 
-    public REINFORCE(int[] layers, float learningRate, float gamma)
+    public REINFORCE(NeuralNetwork policyNetwork, float gamma, float learningRate)
     {
-        this.policyNetwork = new NeuralNetwork(layers, learningRate, NeuralNetwork.ActivationFunction.Softmax); // Using Softmax for action probabilities
+        this.policyNetwork = policyNetwork;
         this.gamma = gamma;
         this.learningRate = learningRate;
     }
 
-    // Sample an action based on policy network's output probabilities
-    public int SampleAction(float[] state)
+    // Train the policy using episode trajectory and the REINFORCE update rule
+    public void Train(Trajectory trajectory)
     {
-        float[] actionProbabilities = policyNetwork.Forward(state);
-        return GetSampledAction(actionProbabilities);
-    }
-
-    // Utility function to sample action based on probability distribution
-    private int GetSampledAction(float[] actionProbabilities)
-    {
-        float rand = UnityEngine.Random.Range(0f, 1f);
-        float cumulative = 0f;
-
-        for (int i = 0; i < actionProbabilities.Length; i++)
+        float totalReward = 0f;
+        for (int t = trajectory.rewards.Count - 1; t >= 0; t--)
         {
-            cumulative += actionProbabilities[i];
-            if (rand < cumulative)
-            {
-                return i;
-            }
+            totalReward = trajectory.rewards[t] + gamma * totalReward;
+            trajectory.returns[t] = totalReward;
         }
+    
 
-        return actionProbabilities.Length - 1; // return the last action if no other was selected
-    }
-
-    // Train the policy using trajectories and the REINFORCE update rule
-    public void Train(List<Trajectory> trajectories)
-    {
-        foreach (var trajectory in trajectories)
+        // Update policy based on the trajectory
+        for (int t = 0; t < trajectory.states.Count; t++)
         {
-            float totalReward = 0f;
-            for (int t = trajectory.rewards.Count - 1; t >= 0; t--)
-            {
-                totalReward = trajectory.rewards[t] + gamma * totalReward;
-                trajectory.returns[t] = totalReward;
-            }
-        }
+            float[] state = trajectory.states[t];
+            Action action = trajectory.actions[t];
+            float reward = trajectory.returns[t];
 
-        // Update policy based on the collected trajectories
-        foreach (var trajectory in trajectories)
-        {
-            for (int t = 0; t < trajectory.states.Count; t++)
-            {
-                float[] state = trajectory.states[t];
-                int action = trajectory.actions[t];
-                float reward = trajectory.returns[t];
-
-                // Calculate policy gradient and update the policy
-                policyNetwork.PolicyUpdate(action, reward, state);
-            }
+            // Calculate policy gradient and update the policy
+            policyNetwork.PolicyUpdate(action, reward, state);
         }
     }
 }
