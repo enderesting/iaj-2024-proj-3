@@ -7,7 +7,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
 {
     public class TableQL
     {
-        public (TQLState, Action, float)[,] tableQLEntries;
+        public (TQLState, int, float)[,] tableQLEntries;
         private List<TQLState> states;
         private List<Action> actions;
 
@@ -18,7 +18,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
             this.actions = actions;
             this.states = GenerateAllStates();
 
-            tableQLEntries = new (TQLState, Action, float)[states.Count, actions.Count];
+            tableQLEntries = new (TQLState, int, float)[states.Count, actions.Count];
 
             if (loadPath != null)
             {
@@ -31,7 +31,7 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
             {
                 for (int j = 0; j < actions.Count; j++)
                 {
-                    tableQLEntries[i, j] = (states[i], actions[j], 0); // Initialize Qvalue to 0
+                    tableQLEntries[i, j] = (states[i], actions[j].ID, 0); // Initialize Qvalue to 0
                 }
             }
             Debug.Log("TableQL initialized with " + states.Count + " states and " + actions.Count + " actions.");
@@ -158,9 +158,9 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
                 for (int j = 0; j < actions.Count; j++)
                 {
                     var qEntry = new QEntry(
-                        tableQLEntries[i, j].Item1,
-                        tableQLEntries[i, j].Item2.ID,
-                        tableQLEntries[i, j].Item3
+                        null, // state. we dont need this
+                        tableQLEntries[i, j].Item2, // action id
+                        tableQLEntries[i, j].Item3 // qvalue
                     );
                     qEntries.Add(qEntry);
                 }
@@ -184,16 +184,23 @@ namespace Assets.Scripts.IAJ.Unity.DecisionMaking.RL
                 // Convert the JSON back into a list of QEntry objects
                 var qEntries = JsonUtility.FromJson<SerializationWrapper<QEntry>>(json).data;
 
-                // Reconstruct the tableQLEntries
-                foreach (var qEntry in qEntries)
+                int counter = 0;
+                int stateIndex = -1;
+                int actionIndex = 0;
+                // Disgusting looking qTable loading but it works!
+                foreach (var qEntry in qEntries) // qentry cant get state so state index is always -1?
                 {
-                    int stateIndex = states.IndexOf(qEntry.state);
-                    int actionIndex = actions.FindIndex(a => a.ID == qEntry.actionID);
-
-                    if (stateIndex != -1 && actionIndex != -1)
-                    {
-                        tableQLEntries[stateIndex, actionIndex].Item3 = qEntry.qValue;
+                    if (counter % actions.Count == 0){
+                        stateIndex += 1;
+                        actionIndex = 0;
                     }
+
+                    // stateIndex = counter % states.Count; //states.IndexOf(qEntry.state);
+                    // int actionIndex = actions.FindIndex(a => a.ID == qEntry.actionID);
+                    tableQLEntries[stateIndex, actionIndex].Item2 = actionIndex;
+                    tableQLEntries[stateIndex, actionIndex].Item3 = qEntry.qValue;
+                    counter++;
+                    actionIndex++;
                 }
             }
             else

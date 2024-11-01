@@ -62,7 +62,8 @@ public class AutonomousCharacter : NPC
     public enum RLOptions
     {
         TrainAndSave,
-        LoadAndPlay
+        LoadAndPlay,
+        RetrainAndSave
     }
 
     [Serializable]
@@ -172,7 +173,8 @@ public class AutonomousCharacter : NPC
     private int previousLevel = 1;
     public TextMesh playerText;
     private GameObject closestObject;
-    private string savePath;
+    private string qtablePath;
+    private string nnPath; // neural network path
 
     // Draw path settings
     private LineRenderer lineRenderer;
@@ -197,7 +199,8 @@ public class AutonomousCharacter : NPC
         playerText.text = "";
         
         // define savePath
-        savePath = Path.Combine(Application.persistentDataPath, "qtable.json");
+        qtablePath = Path.Combine(Application.persistentDataPath, "qtable.json");
+        nnPath = Path.Combine(Application.persistentDataPath, "neuralnetwork.json");
 
 
         // Initializing UI Text
@@ -347,19 +350,19 @@ public class AutonomousCharacter : NPC
             }
             else if (this.TabularQLearningActive)
             {
-                if (RLLOptions == RLOptions.LoadAndPlay)
+                if (RLLOptions == RLOptions.LoadAndPlay || RLLOptions == RLOptions.RetrainAndSave)
                 {
                     string loadpath = Path.Combine(Application.persistentDataPath, "qtable.json");
                     this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this, loadpath);    
                 }
-                else
+                else 
                 {
                 this.QLearning = new QLearning(LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, this);
                 }
             }
             else if (this.NNLearningActive)
             {
-                if (RLLOptions == RLOptions.LoadAndPlay)
+                if (RLLOptions == RLOptions.LoadAndPlay || RLLOptions == RLOptions.RetrainAndSave)
                 {
                     string loadpath = Path.Combine(Application.persistentDataPath, "neuralnetwork.json");
                     /*this.NeuralNetwork =
@@ -379,7 +382,7 @@ public class AutonomousCharacter : NPC
 
     void FixedUpdate()
     {
-        if (GameManager.Instance.gameEnded) //possibly?
+        if (GameManager.Instance.gameEnded)
         {
             if(episodeCounter < MaxEpisodes)
             {
@@ -401,8 +404,8 @@ public class AutonomousCharacter : NPC
 
                         SaveEpisodeDataCSV();
 
-                        Debug.Log("Save Brain to: " + savePath);
-                        QLearning.tableQL.SaveQTable(savePath);
+                        Debug.Log("Save Brain to: " + qtablePath);
+                        QLearning.tableQL.SaveQTable(qtablePath);
                     }
 
                     episodeCounter++;
@@ -878,7 +881,7 @@ public class AutonomousCharacter : NPC
 
     public override void Restart()
     {
-        if (TabularQLearningActive && RLLOptions == RLOptions.TrainAndSave)
+        if (TabularQLearningActive && (RLLOptions == RLOptions.TrainAndSave || RLLOptions == RLOptions.RetrainAndSave))
         {
             //ToDo 
         }
