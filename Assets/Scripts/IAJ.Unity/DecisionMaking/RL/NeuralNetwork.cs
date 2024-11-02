@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 using UnityEngine;
 using Action = Assets.Scripts.IAJ.Unity.DecisionMaking.HeroActions.Action;
 using Random = UnityEngine.Random;
+using System.IO;
+using System.Text;
 
 namespace IAJ.Unity.DecisionMaking.RL
 {
@@ -36,7 +39,7 @@ namespace IAJ.Unity.DecisionMaking.RL
         private ActivationFunction activationFunction;
 
         public NeuralNetwork(AutonomousCharacter character, int[] layers, float learningRate, float discountFactor,
-            ActivationFunction activationFunction = ActivationFunction.Sigmoid, bool softmaxOutput = false)
+            ActivationFunction activationFunction=ActivationFunction.Sigmoid, bool softmaxOutput=false, string loadBrainPath=null)
         {
             this.character = character;
             this.layers = layers;
@@ -45,36 +48,49 @@ namespace IAJ.Unity.DecisionMaking.RL
             this.activationFunction = activationFunction;
             this.softmaxOutput = softmaxOutput;
             InProgress = false;
-            InitializeNetwork();
+            reinforce = new REINFORCE(this, discountFactor, learningRate);
+            Trajectory = new Trajectory();
+            if (loadBrainPath != null)
+            {
+                neurons = new List<float[]>();
+                for (int i = 0; i < layers.Length; i++)
+                {
+                    neurons.Add(new float[layers[i]]);
+                }
+                LoadBrain(loadBrainPath);
+            }
+            else InitializeNetwork();
         }
 
         // Initialize weights, biases, and neurons
         private void InitializeNetwork()
         {
-            reinforce = new REINFORCE(this, discountFactor, learningRate);
-            
             weights = new List<float[][]>();
             biases = new List<float[]>();
             neurons = new List<float[]>();
-            
-            Trajectory = new Trajectory();
 
             for (int i = 0; i < layers.Length; i++)
             {
                 neurons.Add(new float[layers[i]]);
+                
                 if (i > 0)
                 {
-                    biases.Add(new float[layers[i]]);
-                    weights.Add(new float[layers[i]][]);
+                    float[] biasLayer = new float[layers[i]];
+                    float[][] weightLayer = new float[layers[i]][];
 
                     for (int j = 0; j < layers[i]; j++)
                     {
-                        weights[i - 1][j] = new float[layers[i - 1]];
+                        biasLayer[j] = 0.1f;  // Set a default value
+                        weightLayer[j] = new float[layers[i - 1]];
+
                         for (int k = 0; k < layers[i - 1]; k++)
                         {
-                            weights[i - 1][j][k] = 0.1f;
+                            weightLayer[j][k] = 0.1f;  // Set a default value
                         }
                     }
+
+                    biases.Add(biasLayer);
+                    weights.Add(weightLayer);
                 }
             }
         }
@@ -255,7 +271,7 @@ namespace IAJ.Unity.DecisionMaking.RL
             inputs[2] = (float) character.baseStats.Mana / character.baseStats.MaxMana; // Mana
             inputs[3] = character.baseStats.XP / 100f; // XP
             inputs[4] = character.baseStats.Time / GameManager.GameConstants.TIME_LIMIT; // Time
-            inputs[5] = character.baseStats.Money / 50f; // Money
+            inputs[5] = character.baseStats.Money / 25f; // Money
             inputs[6] = character.baseStats.Level / 5f; // Level
 
             int i = 7;
@@ -302,5 +318,92 @@ namespace IAJ.Unity.DecisionMaking.RL
 
             return s;
         }
+
+        public void SaveBrain(string filePath)
+        {
+            NeuralNetworkData data = new NeuralNetworkData
+            {
+                Weights = ConvertWeights(),
+                Biases = ConvertBiases()
+            };
+
+            Debug.Log("Saving Weights and Biases:");
+            foreach (var layer in data.Weights)
+            {
+                foreach (var neuronWeights in layer)
+                {
+                    Debug.Log("Weight layer: " + string.Join(", ", neuronWeights));
+                }
+            }
+
+            foreach (var biasLayer in data.Biases)
+            {
+                Debug.Log("Bias layer: " + string.Join(", ", biasLayer));
+            }
+
+            // Serialize with Newtonsoft.Json
+            string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+            Debug.Log("JSON: " + json);
+            File.WriteAllText(filePath, json, Encoding.UTF8);
+            Debug.Log("Neural network saved to " + filePath);
+        }
+
+        private List<float[][]> ConvertBackWeights(List<List<List<float>>> weightsData)
+        {
+            List<float[][]> convertedWeights = new List<float[][]>();
+            foreach (var layer in weightsData)
+            {
+                float[][] layerWeights = new float[layer.Count][];
+                for (int i = 0; i < layer.Count; i++)
+                {
+                    layerWeights[i] = layer[i].ToArray();
+                }
+                convertedWeights.Add(layerWeights);
+            }
+            return convertedWeights;
+        }
+
+        private List<float[]> ConvertBackBiases(List<List<float>> biasesData)
+        {
+            return biasesData.Select(b => b.ToArray()).ToList();
+        }
+
+        public void LoadBrain(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                Debug.LogWarning("File not found: " + filePath);
+                return;
+            }
+
+            string json = File.ReadAllText(filePath);
+            NeuralNetworkData data = JsonConvert.DeserializeObject<NeuralNetworkData>(json);
+
+            // Apply the loaded data to your neural network
+            weights = ConvertBackWeights(data.Weights);
+            biases = ConvertBackBiases(data.Biases);
+            Debug.Log("Neural network loaded from " + filePath);
+        }
+
+        private List<List<List<float>>> ConvertWeights()
+        {
+            List<List<List<float>>> convertedWeights = new List<List<List<float>>>();
+            foreach (var layer in weights)
+            {
+                List<List<float>> layerWeights = new List<List<float>>();
+                foreach (var neuronWeights in layer)
+                {
+                    layerWeights.Add(neuronWeights.ToList());
+                }
+                convertedWeights.Add(layerWeights);
+            }
+            return convertedWeights;
+        }
+
+        private List<List<float>> ConvertBiases()
+        {
+            return biases.Select(b => b.ToList()).ToList();
+        }
+
     }
 }
