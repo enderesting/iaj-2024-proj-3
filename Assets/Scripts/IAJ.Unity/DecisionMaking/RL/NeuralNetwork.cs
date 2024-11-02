@@ -240,31 +240,43 @@ namespace IAJ.Unity.DecisionMaking.RL
             Action[] executableActions = GetExecutableActions();
             Debug.Log("Number of available actions: " + executableActions.Length);
 
-            Forward(CreateInputs());
+            // forward pass generates probabilities for all actions
+            // filters out 
+            float[] allActionProbabilities = Forward(CreateInputs());
+            List<float> executableActionProbs = new List<float>();
+            List<int> executableActionIndices = new List<int>();
+
+            for (int i = 0; i < allActionProbabilities.Length; i++) // loop through a list of all actions
+            {
+                if (executableActions.Contains(character.Actions[i]))
+                {
+                    executableActionProbs.Add(allActionProbabilities[i]); // add executable action index + probs
+                    executableActionIndices.Add(i);
+                }
+            }
+
+            string s = "Executable Action probabilities:";
+            foreach (float p in neurons[^1]) s += " " + p;
+            Debug.Log(s);
             
             if (Random.Range(0.0f, 1.0f) < exploreRate){
                 chosenAction = executableActions[Random.Range(0, executableActions.Length)];
             }else{
                 float bestActionProb = float.MinValue;
                 Action bestAction = null;
-                for (int i = 0; i < executableActions.Length; i++)
-                {
-                    Action action = executableActions[i];
-                    if (!executableActions.Contains(action)) continue;
 
-                    if (neurons[^1][i] > bestActionProb)
+                // when picking best action, just pick from executable list
+                for (int i = 0; i < executableActionProbs.Count; i++)
+                {
+                    if (executableActionProbs[i] > bestActionProb)
                     {
-                        bestAction = action;
-                        bestActionProb = neurons[^1][i];
+                        bestAction = character.Actions[executableActionIndices[i]];
+                        bestActionProb = executableActionProbs[i];
                     }
                 }
                 chosenAction = bestAction;
             }
 
-            
-            string s = "Action probabilities:";
-            foreach (float p in neurons[^1]) s += " " + p;
-            Debug.Log(s);
                         
             InProgress = false;
             Debug.Log("Action chosen: " + chosenAction.Name);
