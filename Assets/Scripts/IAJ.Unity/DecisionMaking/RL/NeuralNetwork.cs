@@ -18,8 +18,13 @@ namespace IAJ.Unity.DecisionMaking.RL
         private List<float[][]> weights; // Weights between layers
         private List<float[]> biases; // Biases for each layer
         private List<float[]> neurons; // Neuron values per layer
-        private float discountFactor;
         private float learningRate;
+        private float learningRateDecay;
+        private float minLearningRate;
+        private float discountFactor;
+        private float exploreRate;
+        private float exploreRateDecay;
+        private float minExploreRate;
         public bool InProgress;
         public Action chosenAction;
         public int numberOfVictories = 0;
@@ -38,13 +43,21 @@ namespace IAJ.Unity.DecisionMaking.RL
 
         private ActivationFunction activationFunction;
 
-        public NeuralNetwork(AutonomousCharacter character, int[] layers, float learningRate, float discountFactor,
+        public NeuralNetwork(AutonomousCharacter character, int[] layers,
+            float learningRate, float learningRateDecay, float minLearningRate,
+            float discountFactor,
+            float exploreRate, float exploreRateDecay, float minExploreRate,
             ActivationFunction activationFunction=ActivationFunction.Sigmoid, bool softmaxOutput=false, string loadBrainPath=null)
         {
             this.character = character;
             this.layers = layers;
             this.learningRate = learningRate;
+            this.learningRateDecay = learningRateDecay;
+            this.minLearningRate = minLearningRate;
             this.discountFactor = discountFactor;
+            this.exploreRate = exploreRate;
+            this.exploreRateDecay = exploreRateDecay;
+            this.minExploreRate = minExploreRate;
             this.activationFunction = activationFunction;
             this.softmaxOutput = softmaxOutput;
             InProgress = false;
@@ -80,12 +93,12 @@ namespace IAJ.Unity.DecisionMaking.RL
 
                     for (int j = 0; j < layers[i]; j++)
                     {
-                        biasLayer[j] = 0.1f;  // Set a default value
+                        biasLayer[j] = Random.Range(-0.1f,0.1f); // Set a default value
                         weightLayer[j] = new float[layers[i - 1]];
 
                         for (int k = 0; k < layers[i - 1]; k++)
                         {
-                            weightLayer[j][k] = 0.1f;  // Set a default value
+                            weightLayer[j][k] = Random.Range(-0.05f,0.05f); // Set a default value
                         }
                     }
 
@@ -226,34 +239,42 @@ namespace IAJ.Unity.DecisionMaking.RL
             // Choose an action
             Action[] executableActions = GetExecutableActions();
             Debug.Log("Number of available actions: " + executableActions.Length);
-            
+
             Forward(CreateInputs());
+            
+            if (Random.Range(0.0f, 1.0f) < exploreRate){
+                chosenAction = executableActions[Random.Range(0, executableActions.Length)];
+            }else{
+                float bestActionProb = float.MinValue;
+                Action bestAction = null;
+                for (int i = 0; i < executableActions.Length; i++)
+                {
+                    Action action = executableActions[i];
+                    if (!executableActions.Contains(action)) continue;
+
+                    if (neurons[^1][i] > bestActionProb)
+                    {
+                        bestAction = action;
+                        bestActionProb = neurons[^1][i];
+                    }
+                }
+                chosenAction = bestAction;
+            }
+
+            
             string s = "Action probabilities:";
             foreach (float p in neurons[^1]) s += " " + p;
             Debug.Log(s);
-            
-            float bestActionProb = float.MinValue;
-            Action bestAction = null;
-            for (int i = 0; i < executableActions.Length; i++)
-            {
-                Action action = executableActions[i];
-                if (!executableActions.Contains(action)) continue;
-
-                if (neurons[^1][i] > bestActionProb)
-                {
-                    bestAction = action;
-                    bestActionProb = neurons[^1][i];
-                }
-            }
-            
+                        
             InProgress = false;
-            Debug.Log("Action chosen: " + bestAction.Name);
+            Debug.Log("Action chosen: " + chosenAction.Name);
             
-            Trajectory.actions.Add(bestAction);
+            Trajectory.actions.Add(chosenAction);
             Trajectory.states.Add(neurons[0]);
             Trajectory.rewards.Add(0);
             Trajectory.returns.Add(0);
-            return chosenAction = bestAction;
+            return chosenAction;
+
         }
         
         public Action[] GetExecutableActions()
@@ -405,5 +426,10 @@ namespace IAJ.Unity.DecisionMaking.RL
             return biases.Select(b => b.ToList()).ToList();
         }
 
+        public void UpdateParameters()
+        {
+            learningRate = Mathf.Max(minLearningRate, learningRate * Mathf.Pow(learningRateDecay, character.episodeCounter));
+            exploreRate = Mathf.Max(minExploreRate, exploreRate * Mathf.Pow(exploreRateDecay, character.episodeCounter));
+        }
     }
 }

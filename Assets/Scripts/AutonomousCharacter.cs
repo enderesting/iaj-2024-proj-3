@@ -367,12 +367,12 @@ public class AutonomousCharacter : NPC
                 {
                     string loadpath = Path.Combine(Application.persistentDataPath, "neuralnetwork.json");
                     this.NeuralNetwork =
-                        new NeuralNetwork(this, layers, LearningRate, DiscountRate, NeuralNetwork.ActivationFunction.Sigmoid, true, loadpath);
+                        new NeuralNetwork(this, layers, LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, NeuralNetwork.ActivationFunction.Sigmoid, true, loadpath);
                 }
                 else
                 {
                     this.NeuralNetwork =
-                        new NeuralNetwork(this, layers, LearningRate, DiscountRate, NeuralNetwork.ActivationFunction.Sigmoid, true);
+                        new NeuralNetwork(this, layers, LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, NeuralNetwork.ActivationFunction.Sigmoid, true);
                 }
             }
         }
@@ -430,6 +430,7 @@ public class AutonomousCharacter : NPC
                         Reward = 0;
                         RewardPerEpisode = 0;
                         NeuralNetwork.TrainEpisode();
+                        NeuralNetwork.UpdateParameters();
 
                         episodeTimes.Add(NeuralNetwork.timeLastEpisode);
                         episodeGolds.Add(NeuralNetwork.goldLastEpisode);
