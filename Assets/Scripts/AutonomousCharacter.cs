@@ -419,12 +419,23 @@ public class AutonomousCharacter : NPC
                     this.QLearning.InitializeQLearning();
 
                     return;
-                } else if (NNLearningActive)
+                } 
+                else if (NNLearningActive)
                 {
-                    NeuralNetwork.SetLastActionReward(Reward);
-                    AddToDiary(" Reward: " + Reward);
-                    Reward = 0;
-                    NeuralNetwork.TrainEpisode();
+                    if (this.RLLOptions != RLOptions.LoadAndPlay)
+                    {
+                        NeuralNetwork.SetLastActionReward(Reward);
+                        AddToDiary(" Reward: " + Reward);
+                        episodeRewards.Add(RewardPerEpisode);
+                        Reward = 0;
+                        RewardPerEpisode = 0;
+                        NeuralNetwork.TrainEpisode();
+
+                        episodeTimes.Add(NeuralNetwork.timeLastEpisode);
+                        episodeGolds.Add(NeuralNetwork.goldLastEpisode);
+                        episodeVictories.Add(NeuralNetwork.numberOfVictories);
+                        SaveEpisodeDataCSV();
+                    }
                     
                     episodeCounter++;
                     GameManager.Instance.RestartGame();
