@@ -31,6 +31,7 @@ namespace IAJ.Unity.DecisionMaking.RL
         public int goldLastEpisode = 0;
         public float timeLastEpisode = 0;
         public Trajectory Trajectory;
+        private float weightRange;
 
         public enum ActivationFunction
         {
@@ -63,6 +64,7 @@ namespace IAJ.Unity.DecisionMaking.RL
             InProgress = false;
             reinforce = new REINFORCE(this, discountFactor, learningRate);
             Trajectory = new Trajectory();
+            weightRange = Mathf.Sqrt(6f / (layers[0] + layers[^1]));
             if (loadBrainPath != null)
             {
                 neurons = new List<float[]>();
@@ -93,12 +95,12 @@ namespace IAJ.Unity.DecisionMaking.RL
 
                     for (int j = 0; j < layers[i]; j++)
                     {
-                        biasLayer[j] = Random.Range(-0.1f,0.1f); // Set a default value
+                        biasLayer[j] = Random.Range(-weightRange,weightRange); // Set a default value
                         weightLayer[j] = new float[layers[i - 1]];
 
                         for (int k = 0; k < layers[i - 1]; k++)
                         {
-                            weightLayer[j][k] = Random.Range(-0.05f,0.05f); // Set a default value
+                            weightLayer[j][k] = Random.Range(-weightRange,weightRange); // Set a default value
                         }
                     }
 
