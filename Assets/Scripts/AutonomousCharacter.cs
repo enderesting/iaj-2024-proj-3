@@ -362,17 +362,17 @@ public class AutonomousCharacter : NPC
             }
             else if (this.NNLearningActive)
             {
+                int[] layers = { GameManager.Instance.DisposableObjects.Values.Count * 2 + 7, 16, 16, Actions.Count };
                 if (RLLOptions == RLOptions.LoadAndPlay || RLLOptions == RLOptions.RetrainAndSave)
                 {
                     string loadpath = Path.Combine(Application.persistentDataPath, "neuralnetwork.json");
-                    /*this.NeuralNetwork =
-                        new NeuralNetwork(, LearningRate, NeuralNetwork.ActivationFunction.Sigmoid, true, loadpath);*/
+                    this.NeuralNetwork =
+                        new NeuralNetwork(this, layers, LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, NeuralNetwork.ActivationFunction.Sigmoid, true, loadpath);
                 }
                 else
                 {
-                    int[] layers = { GameManager.Instance.DisposableObjects.Values.Count * 2 + 7, 16, 16, Actions.Count };
                     this.NeuralNetwork =
-                        new NeuralNetwork(this, layers, LearningRate, DiscountRate, NeuralNetwork.ActivationFunction.Sigmoid, true);
+                        new NeuralNetwork(this, layers, LearningRate, LearningRateDecay, MinLearningRate, DiscountRate, ExploreRate, ExploreRateDecay, MinExploreRate, NeuralNetwork.ActivationFunction.Sigmoid, true);
                 }
             }
         }
@@ -419,12 +419,27 @@ public class AutonomousCharacter : NPC
                     this.QLearning.InitializeQLearning();
 
                     return;
-                } else if (NNLearningActive)
+                } 
+                else if (NNLearningActive)
                 {
-                    NeuralNetwork.SetLastActionReward(Reward);
-                    AddToDiary(" Reward: " + Reward);
-                    Reward = 0;
-                    NeuralNetwork.TrainEpisode();
+                    if (this.RLLOptions != RLOptions.LoadAndPlay)
+                    {
+                        NeuralNetwork.SetLastActionReward(Reward);
+                        AddToDiary(" Reward: " + Reward);
+                        episodeRewards.Add(RewardPerEpisode);
+                        Reward = 0;
+                        RewardPerEpisode = 0;
+                        NeuralNetwork.TrainEpisode();
+                        NeuralNetwork.UpdateParameters();
+
+                        episodeTimes.Add(NeuralNetwork.timeLastEpisode);
+                        episodeGolds.Add(NeuralNetwork.goldLastEpisode);
+                        episodeVictories.Add(NeuralNetwork.numberOfVictories);
+                        SaveEpisodeDataCSV();
+
+                        Debug.Log("Save Brain to: " + nnPath);
+                        NeuralNetwork.SaveBrain(nnPath);
+                    }
                     
                     episodeCounter++;
                     GameManager.Instance.RestartGame();

@@ -179,6 +179,11 @@ public class GameManager : MonoBehaviour
                         Character.QLearning.goldLastEpisode = Character.baseStats.Money;
                         Character.QLearning.timeLastEpisode = Character.baseStats.Time;
                     }
+                    else if (Character.NNLearningActive)
+                    {
+                        Character.NeuralNetwork.goldLastEpisode = Character.baseStats.Money;
+                        Character.NeuralNetwork.timeLastEpisode = Character.baseStats.Time;
+                    }
                 }
             }
             else if (this.Character.baseStats.Money >= 25)
@@ -194,7 +199,13 @@ public class GameManager : MonoBehaviour
                         Character.QLearning.numberOfVictories++;
                         Character.QLearning.goldLastEpisode = Character.baseStats.Money;
                         Character.QLearning.timeLastEpisode = Character.baseStats.Time;
-                    } 
+                    }
+                    else if (Character.NNLearningActive)
+                    {
+                        Character.NeuralNetwork.numberOfVictories++;
+                        Character.NeuralNetwork.goldLastEpisode = Character.baseStats.Money;
+                        Character.NeuralNetwork.timeLastEpisode = Character.baseStats.Time;
+                    }
                 }
             }
         }
