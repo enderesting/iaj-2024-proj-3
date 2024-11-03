@@ -426,6 +426,7 @@ public class AutonomousCharacter : NPC
                     {
                         NeuralNetwork.SetLastActionReward(Reward);
                         AddToDiary(" Reward: " + Reward);
+                        RewardPerEpisode += Reward;
                         episodeRewards.Add(RewardPerEpisode);
                         Reward = 0;
                         RewardPerEpisode = 0;
@@ -595,6 +596,7 @@ public class AutonomousCharacter : NPC
         {
             NeuralNetwork.SetLastActionReward(Reward);
             AddToDiary(" Reward: " + Reward);
+            RewardPerEpisode += Reward;
             Reward = 0;
         }
 

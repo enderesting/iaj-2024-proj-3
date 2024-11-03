@@ -62,7 +62,7 @@ namespace IAJ.Unity.DecisionMaking.RL
             this.activationFunction = activationFunction;
             this.softmaxOutput = softmaxOutput;
             InProgress = false;
-            reinforce = new REINFORCE(this, discountFactor, learningRate);
+            reinforce = new REINFORCE(this, discountFactor, learningRate, character);
             Trajectory = new Trajectory();
             weightRange = Mathf.Sqrt(6f / (layers[0] + layers[^1]));
             if (loadBrainPath != null)
@@ -196,8 +196,9 @@ namespace IAJ.Unity.DecisionMaking.RL
             for (int i = 0; i < errors.Length; i++)
             {
                 // Policy gradient signal for action taken
-                errors[i] = (i == actionIndex ? 1 : 0) - actionProbabilities[i];
-                errors[i] *= reward; // Scale by reward as per REINFORCE
+                errors[i] = (i == actionIndex ? 1 : 0) * reward / actionProbabilities[i];
+                // errors[i] = (i == actionIndex ? 1 : 0) - actionProbabilities[i];
+                // errors[i] *= reward; // Scale by reward as per REINFORCE
             }
 
             // Backward pass for each layer
@@ -238,57 +239,62 @@ namespace IAJ.Unity.DecisionMaking.RL
         public Action ChooseAction()
         {
             Debug.Log("Choosing action");
-            // Choose an action
+            // Get executable actions
             Action[] executableActions = GetExecutableActions();
             Debug.Log("Number of available actions: " + executableActions.Length);
 
-            // forward pass generates probabilities for all actions
-            // filters out 
+            // Generate probabilities for all actions
             float[] allActionProbabilities = Forward(CreateInputs());
+
+            // Filter for executable actions and associated probabilities
             List<float> executableActionProbs = new List<float>();
             List<int> executableActionIndices = new List<int>();
 
-            for (int i = 0; i < allActionProbabilities.Length; i++) // loop through a list of all actions
+            for (int i = 0; i < allActionProbabilities.Length; i++)
             {
                 if (executableActions.Contains(character.Actions[i]))
                 {
-                    executableActionProbs.Add(allActionProbabilities[i]); // add executable action index + probs
+                    executableActionProbs.Add(allActionProbabilities[i]);
                     executableActionIndices.Add(i);
                 }
             }
 
-            string s = "Executable Action probabilities:";
-            foreach (float p in neurons[^1]) s += " " + p;
-            Debug.Log(s);
-            
-            if (Random.Range(0.0f, 1.0f) < exploreRate){
-                chosenAction = executableActions[Random.Range(0, executableActions.Length)];
-            }else{
-                float bestActionProb = float.MinValue;
-                Action bestAction = null;
-
-                // when picking best action, just pick from executable list
+            // Normalize probabilities for executable actions (if not using Softmax in output layer)
+            if (!softmaxOutput)
+            {
+                float sumProbs = executableActionProbs.Sum();
                 for (int i = 0; i < executableActionProbs.Count; i++)
                 {
-                    if (executableActionProbs[i] > bestActionProb)
-                    {
-                        bestAction = character.Actions[executableActionIndices[i]];
-                        bestActionProb = executableActionProbs[i];
-                    }
+                    executableActionProbs[i] /= sumProbs;
                 }
-                chosenAction = bestAction;
             }
 
-                        
+            // Sample an action based on executable action probabilities
+            float rand = Random.Range(0f, 1f);
+            float cumulativeProbability = 0f;
+            int chosenIndex = -1;
+
+            for (int i = 0; i < executableActionProbs.Count; i++)
+            {
+                cumulativeProbability += executableActionProbs[i];
+                if (rand <= cumulativeProbability)
+                {
+                    chosenIndex = executableActionIndices[i];
+                    break;
+                }
+            }
+
+            chosenAction = character.Actions[chosenIndex];
             InProgress = false;
             Debug.Log("Action chosen: " + chosenAction.Name);
-            
+
+            // Record trajectory information
             Trajectory.actions.Add(chosenAction);
             Trajectory.states.Add(neurons[0]);
             Trajectory.rewards.Add(0);
             Trajectory.returns.Add(0);
-            return chosenAction;
 
+            return chosenAction;
         }
         
         public Action[] GetExecutableActions()
@@ -442,8 +448,11 @@ namespace IAJ.Unity.DecisionMaking.RL
 
         public void UpdateParameters()
         {
-            learningRate = Mathf.Max(minLearningRate, learningRate * Mathf.Pow(learningRateDecay, character.episodeCounter));
+            learningRate = Mathf.Max(minLearningRate, learningRate * (1 - learningRateDecay));
+            // learningRate = Mathf.Max(minLearningRate, learningRate * Mathf.Pow(learningRateDecay, character.episodeCounter));
             exploreRate = Mathf.Max(minExploreRate, exploreRate * Mathf.Pow(exploreRateDecay, character.episodeCounter));
+            Debug.Log("Updated learning rate: " + learningRate);
+            Debug.Log("Updated exploration rate: " + exploreRate);
         }
     }
 }
